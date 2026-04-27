@@ -309,6 +309,15 @@ button {
   font-weight: 700;
 }
 
+.hot-search button {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 4px 8px;
+  font-weight: 700;
+}
+
 .service-panel {
   background: rgba(255, 255, 255, 0.88);
   border-radius: 10px;
@@ -398,6 +407,11 @@ button {
 
 .sort-row button:last-child {
   border-right: 0;
+}
+
+.sort-row button.active {
+  background: #fff4f2;
+  color: var(--sdu-red);
 }
 
 .service-card-grid {
@@ -607,6 +621,14 @@ button {
   font-weight: 700;
 }
 
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .primary {
   background: var(--sdu-red);
   color: #ffffff;
@@ -629,6 +651,42 @@ button {
   color: var(--sdu-red);
 }
 
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.feedback,
+.loading-state {
+  border-radius: 8px;
+  padding: 14px 18px;
+  border: 1px solid rgba(166, 25, 18, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.feedback.success {
+  border-color: rgba(21, 128, 61, 0.28);
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 800;
+}
+
+.feedback.error {
+  border-color: rgba(166, 25, 18, 0.3);
+  background: var(--red-soft);
+  color: var(--red);
+  font-weight: 800;
+}
+
+.loading-state {
+  color: var(--muted);
+  text-align: center;
+}
+
 .split-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
@@ -649,6 +707,11 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.compact-form {
+  display: grid;
+  gap: 10px;
 }
 
 .field {

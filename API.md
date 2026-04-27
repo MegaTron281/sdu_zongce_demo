@@ -6,7 +6,7 @@
 go run .
 ```
 
-默认地址：`http://localhost:8080`。后端同时托管当前目录下的静态前端文件，打开 `http://localhost:8080/index.html` 即可访问原型。
+默认地址：`http://localhost:8080`。后端同时托管当前目录下的静态前端文件，打开 `http://localhost:8080/` 即可访问原型。
 
 ## 核心接口
 

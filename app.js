@@ -19,147 +19,92 @@ const pages = {
   ],
 };
 
+const currentStudent = {
+  student: "李明",
+  studentId: "20230001",
+  className: "软件 2301",
+};
+
 const state = {
   role: "student",
   page: "activity",
   summaryPhase: false,
-  selectedActivityId: "a1",
+  selectedActivityId: "a2",
+  loading: true,
+  error: "",
+  toast: "",
+  filters: {
+    q: "",
+    category: "全部",
+    level: "全部",
+  },
+  sort: "default",
+  draft: {
+    awardLevel: "一等奖",
+    projectType: "个人项目",
+    rank: 1,
+    materials: "证书图片、公示截图、官方报道链接",
+    note: "已上传奖状图片，并附主办方官网公示链接。",
+  },
+  data: {
+    activities: [],
+    applications: [],
+    publicity: [],
+    score: null,
+    scoreRows: [],
+    rules: [],
+    logs: [],
+  },
 };
 
-const activities = [
-  {
-    id: "a1",
-    name: "省级大学生创新创业训练计划",
-    organizer: "省教育厅",
-    level: "省级",
-    category: "创新素养",
-    range: "6-12 分",
-    deadline: "2026-04-28",
-    source: "https://example.edu/notice/innovation",
-    applications: 42,
-    rule: "按获奖等级计入成果性评价，集体项目按位次递减。",
-  },
-  {
-    id: "a2",
-    name: "校级劳动实践示范项目",
-    organizer: "学生工作部",
-    level: "校级",
-    category: "劳动素养",
-    range: "3-8 分",
-    deadline: "2026-05-12",
-    source: "https://example.edu/notice/labor",
-    applications: 86,
-    rule: "需提交实践证明和学院认定材料，模块上限 25 分。",
-  },
-  {
-    id: "a3",
-    name: "学院文艺展演优秀节目评选",
-    organizer: "信息工程学院",
-    level: "院级",
-    category: "文艺素养",
-    range: "1-5 分",
-    deadline: "2026-04-27",
-    source: "https://example.edu/notice/art",
-    applications: 31,
-    rule: "个人项目按等级计分，集体项目需填写本人位次。",
-  },
-  {
-    id: "a4",
-    name: "校运会阳光体育竞赛",
-    organizer: "体育教学部",
-    level: "校级",
-    category: "身心素养",
-    range: "2-8 分",
-    deadline: "2026-06-01",
-    source: "https://example.edu/notice/sports",
-    applications: 57,
-    rule: "比赛成绩需可在官方成绩册中核验。",
-  },
-];
-
-const applications = [
-  {
-    id: "s1",
-    student: "李明",
-    className: "软件 2301",
-    activity: "省级大学生创新创业训练计划",
-    category: "创新素养",
-    score: 10,
-    status: "公示中",
-    submittedAt: "2026-04-22",
-    countdown: "剩余 1 天 8 小时",
-    reviewerOpinion: "材料齐全，建议通过。",
-    adminOpinion: "待复审",
-  },
-  {
-    id: "s2",
-    student: "陈欣",
-    className: "软件 2301",
-    activity: "校级劳动实践示范项目",
-    category: "劳动素养",
-    score: 6,
-    status: "待班委审核",
-    submittedAt: "2026-04-24",
-    countdown: "",
-    reviewerOpinion: "",
-    adminOpinion: "",
-  },
-  {
-    id: "s3",
-    student: "王悦",
-    className: "软件 2301",
-    activity: "学院文艺展演优秀节目评选",
-    category: "文艺素养",
-    score: 4,
-    status: "待管理员审核",
-    submittedAt: "2026-04-20",
-    countdown: "",
-    reviewerOpinion: "已核验官网公示。",
-    adminOpinion: "等待复审",
-  },
-  {
-    id: "s4",
-    student: "赵然",
-    className: "软件 2302",
-    activity: "校运会阳光体育竞赛",
-    category: "身心素养",
-    score: 5,
-    status: "已通过",
-    submittedAt: "2026-04-10",
-    countdown: "",
-    reviewerOpinion: "通过。",
-    adminOpinion: "计分入账。",
-  },
-  {
-    id: "s5",
-    student: "李明",
-    className: "软件 2301",
-    activity: "学院志愿服务活动补录",
-    category: "劳动素养",
-    score: 0,
-    status: "已驳回",
-    submittedAt: "2026-04-18",
-    countdown: "",
-    reviewerOpinion: "缺少主办方盖章证明。",
-    adminOpinion: "",
-  },
-];
-
-const scoreModules = [
-  ["身心素养", 18, 25],
-  ["文艺素养", 14, 25],
-  ["劳动素养", 21, 25],
-  ["创新素养", 23, 25],
-];
+let searchTimer = 0;
 
 function $(selector) {
   return document.querySelector(selector);
 }
 
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatNumber(value) {
+  const number = Number(value || 0);
+  return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
+function formatDateTime(value) {
+  if (!value) return "暂无";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function daysUntil(dateText) {
-  const now = new Date("2026-04-26T00:00:00+08:00");
   const deadline = new Date(`${dateText}T23:59:59+08:00`);
-  return Math.ceil((deadline - now) / 86400000);
+  if (Number.isNaN(deadline.getTime())) return 999;
+  return Math.ceil((deadline - new Date()) / 86400000);
+}
+
+function publicityCountdown(value) {
+  if (!value) return "待公示";
+  const deadline = new Date(value);
+  const diff = deadline - new Date();
+  if (Number.isNaN(deadline.getTime())) return "时间待确认";
+  if (diff <= 0) return "已到期";
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  if (hours >= 24) return `剩余 ${Math.floor(hours / 24)} 天 ${hours % 24} 小时`;
+  return `剩余 ${hours} 小时 ${minutes} 分钟`;
 }
 
 function statusTag(status) {
@@ -170,8 +115,81 @@ function statusTag(status) {
     "已通过": "green",
     "已驳回": "red",
     "特殊情况处理中": "amber",
+    "已上架": "green",
+    "待审核上架": "amber",
   };
-  return `<span class="tag ${colorMap[status] || ""}">${status}</span>`;
+  return `<span class="tag ${colorMap[status] || ""}">${esc(status)}</span>`;
+}
+
+async function api(path, options = {}) {
+  const init = {
+    method: options.method || "GET",
+    headers: { Accept: "application/json", ...(options.headers || {}) },
+  };
+  if (options.body !== undefined) {
+    init.headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(options.body);
+  }
+  const response = await fetch(path, init);
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+  if (!response.ok) {
+    const message = payload && payload.error ? payload.error : `请求失败：${response.status}`;
+    throw new Error(message);
+  }
+  return payload;
+}
+
+async function loadActivities() {
+  state.data.activities = await api("/api/activities");
+  if (!state.data.activities.some((item) => item.id === state.selectedActivityId)) {
+    state.selectedActivityId = state.data.activities[0]?.id || "";
+  }
+}
+
+async function loadApplications() {
+  state.data.applications = await api("/api/applications");
+  const ids = [...new Set(state.data.applications.map((item) => item.studentId).filter(Boolean))];
+  state.data.scoreRows = await Promise.all(ids.map((id) => api(`/api/scores/${encodeURIComponent(id)}`)));
+}
+
+async function loadAll() {
+  state.loading = true;
+  state.error = "";
+  render();
+  try {
+    const meta = await api("/api/meta");
+    state.summaryPhase = Boolean(meta.summaryPhase);
+    await Promise.all([loadActivities(), loadApplications(), loadRules(), loadLogs()]);
+    state.data.publicity = await api("/api/publicity");
+    state.data.score = await api(`/api/scores/${currentStudent.studentId}`);
+  } catch (error) {
+    state.error = error.message;
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+async function refreshData(message = "") {
+  state.error = "";
+  try {
+    await Promise.all([loadActivities(), loadApplications(), loadRules(), loadLogs()]);
+    state.data.publicity = await api("/api/publicity");
+    state.data.score = await api(`/api/scores/${currentStudent.studentId}`);
+    state.toast = message;
+  } catch (error) {
+    state.error = error.message;
+  }
+  render();
+}
+
+async function loadRules() {
+  state.data.rules = await api("/api/admin/rules");
+}
+
+async function loadLogs() {
+  state.data.logs = await api("/api/admin/logs");
 }
 
 function setRole(role) {
@@ -202,14 +220,25 @@ function renderShell() {
   $("#pageTitle").textContent = current ? current[1] : "";
   $("#phaseLabel").textContent = state.summaryPhase ? "综测汇总期" : "日常申报期";
   $("#phaseToggle").checked = state.summaryPhase;
+
+  const pending = state.data.applications.filter((item) =>
+    ["待班委审核", "公示中", "待管理员审核", "特殊情况处理中"].includes(item.status),
+  ).length;
+  const finished = state.data.applications.filter((item) => ["已通过", "已驳回"].includes(item.status)).length;
+  const reviewTodo = state.role === "admin"
+    ? state.data.applications.filter((item) => ["待管理员审核", "特殊情况处理中"].includes(item.status)).length
+    : state.data.applications.filter((item) => item.status === "待班委审核").length;
+
   $("#noticeStrip").innerHTML = `
+    ${state.error ? `<div class="feedback error">${esc(state.error)}</div>` : ""}
+    ${state.toast ? `<div class="feedback success">${esc(state.toast)}</div>` : ""}
     <div class="notice task-strip">
       <span class="task-main">正在办理中的事项</span>
-      <strong>${state.summaryPhase ? "12" : "暂无"}</strong>
+      <strong>${pending}</strong>
       <span>办结事项</span>
-      <strong>108</strong>
-      <span>待我评价</span>
-      <strong>108</strong>
+      <strong>${finished}</strong>
+      <span>待我处理</span>
+      <strong>${reviewTodo}</strong>
       <span class="task-phase">${state.summaryPhase ? "综测汇总期：复审、异议、导出开放" : "日常申报期：申请、初审、班级公示开放"}</span>
     </div>
   `;
@@ -217,6 +246,10 @@ function renderShell() {
 
 function render() {
   renderShell();
+  if (state.loading) {
+    $("#content").innerHTML = '<div class="loading-state">正在加载平台数据...</div>';
+    return;
+  }
   const renderMap = {
     activity: renderActivitySquare,
     submit: renderSubmit,
@@ -236,18 +269,19 @@ function render() {
 }
 
 function renderActivitySquare() {
+  const visibleActivities = sortedActivities();
   return `
     <section class="portal-search">
       <div class="search-box">
-        <input id="activitySearch" placeholder="搜索您需要的综测活动 / Search Service" />
+        <input id="activitySearch" value="${esc(state.filters.q)}" placeholder="搜索您需要的综测活动 / Search Service" />
         <span class="search-icon">⌕</span>
       </div>
       <div class="hot-search">
         <span>最近搜索：</span>
-        <span>创新竞赛</span>
-        <span>劳动实践</span>
-        <span>公示异议</span>
-        <span>成绩导出</span>
+        <button data-search="创新竞赛">创新竞赛</button>
+        <button data-search="劳动实践">劳动实践</button>
+        <button data-search="公示异议">公示异议</button>
+        <button data-search="">全部活动</button>
       </div>
     </section>
 
@@ -258,39 +292,17 @@ function renderActivitySquare() {
         <button class="portal-tab">推荐服务</button>
       </div>
 
-      <div class="filter-row">
-        <div class="filter-title">服务分类</div>
-        <div class="filter-options">
-          ${["全部", "身心素养", "文艺素养", "劳动素养", "创新素养", "补录申请", "公示异议", "成绩查询"]
-            .map((item, index) => `<button class="filter-chip ${index === 0 ? "active" : ""}">${item}</button>`)
-            .join("")}
-        </div>
-      </div>
-      <div class="filter-row">
-        <div class="filter-title">活动级别</div>
-        <div class="filter-options">
-          ${["全部", "国家级", "省级", "校级", "院级"]
-            .map((item, index) => `<button class="filter-chip ${index === 0 ? "active" : ""}">${item}</button>`)
-            .join("")}
-        </div>
-      </div>
-      <div class="filter-row">
-        <div class="filter-title">项目名称</div>
-        <div class="filter-options">
-          ${["全部", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "W", "X", "Y", "Z"]
-            .map((item, index) => `<button class="filter-chip ${index === 0 ? "active" : ""}">${item}</button>`)
-            .join("")}
-        </div>
-      </div>
+      ${renderFilterRow("服务分类", "category", ["全部", "身心素养", "文艺素养", "劳动素养", "创新素养"])}
+      ${renderFilterRow("活动级别", "level", ["全部", "国家级", "省级", "校级", "院级"])}
 
       <div class="sort-row">
-        <button>默认排序</button>
-        <button>截止时间</button>
-        <button>申请数</button>
+        <button class="${state.sort === "default" ? "active" : ""}" data-sort="default">默认排序</button>
+        <button class="${state.sort === "deadline" ? "active" : ""}" data-sort="deadline">截止时间</button>
+        <button class="${state.sort === "applications" ? "active" : ""}" data-sort="applications">申请数</button>
       </div>
 
       <div class="service-card-grid">
-        ${activities
+        ${visibleActivities
           .map((activity) => {
             const quick = daysUntil(activity.deadline) <= 3;
             return `
@@ -299,85 +311,168 @@ function renderActivitySquare() {
                   ${quick ? '<span class="tag red">快截止</span>' : "设为收藏 ☆"}
                 </div>
                 <div class="service-body">
-                  <div class="service-icon">${activity.category.slice(0, 1)}</div>
+                  <div class="service-icon">${esc(activity.category.slice(0, 1))}</div>
                   <div class="service-info">
-                    <h3>${activity.name}</h3>
-                    <p>${activity.organizer} · ${activity.level} · ${activity.range}</p>
+                    <h3>${esc(activity.name)}</h3>
+                    <p>${esc(activity.organizer)} · ${esc(activity.level)} · ${esc(activity.range)}</p>
                     <div class="service-actions">
-                      <button class="secondary" data-detail="${activity.id}">详情</button>
-                      <button class="primary" data-apply="${activity.id}">申报</button>
+                      <button class="secondary" data-detail="${esc(activity.id)}">详情</button>
+                      <button class="primary" data-apply="${esc(activity.id)}" ${state.summaryPhase ? "disabled" : ""}>申报</button>
                     </div>
                   </div>
                 </div>
               </article>
             `;
           })
+          .join("") || '<div class="empty">没有匹配的活动</div>'}
+      </div>
+    </section>
+  `;
+}
+
+function sortedActivities() {
+  const keyword = state.filters.q.toLowerCase();
+  const items = state.data.activities.filter((activity) => {
+    const matchKeyword =
+      !keyword ||
+      `${activity.name}${activity.organizer}${activity.category}${activity.level}`.toLowerCase().includes(keyword);
+    const matchCategory = state.filters.category === "全部" || activity.category === state.filters.category;
+    const matchLevel = state.filters.level === "全部" || activity.level === state.filters.level;
+    return matchKeyword && matchCategory && matchLevel;
+  });
+  return items.sort((a, b) => {
+    if (state.sort === "deadline") return String(a.deadline).localeCompare(String(b.deadline));
+    if (state.sort === "applications") return Number(b.applications || 0) - Number(a.applications || 0);
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+function renderFilterRow(title, key, options) {
+  return `
+    <div class="filter-row">
+      <div class="filter-title">${title}</div>
+      <div class="filter-options">
+        ${options
+          .map(
+            (item) =>
+              `<button class="filter-chip ${state.filters[key] === item ? "active" : ""}" data-filter-key="${key}" data-filter-value="${item}">${item}</button>`,
+          )
           .join("")}
       </div>
     </div>
   `;
 }
 
+function selectedActivity() {
+  return state.data.activities.find((item) => item.id === state.selectedActivityId) || state.data.activities[0];
+}
+
+function calculatePreviewScore(activity) {
+  if (!activity) return 0;
+  const matrix = {
+    "国家级:一等奖": 16,
+    "国家级:二等奖": 12,
+    "国家级:三等奖": 8,
+    "国家级:其他名次": 5,
+    "省级:一等奖": 12,
+    "省级:二等奖": 10,
+    "省级:三等奖": 7,
+    "省级:其他名次": 4,
+    "校级:一等奖": 8,
+    "校级:二等奖": 6,
+    "校级:三等奖": 4,
+    "校级:其他名次": 2,
+    "院级:一等奖": 5,
+    "院级:二等奖": 4,
+    "院级:三等奖": 3,
+    "院级:其他名次": 1,
+  };
+  const base = matrix[`${activity.level}:${state.draft.awardLevel}`] || 0;
+  if (state.draft.projectType === "集体项目" && Number(state.draft.rank) > 1) {
+    return Math.max(base * (1 - (Number(state.draft.rank) - 1) * 0.2), base * 0.3);
+  }
+  return base;
+}
+
 function renderSubmit() {
-  const activity = activities.find((item) => item.id === state.selectedActivityId) || activities[0];
+  const activity = selectedActivity();
+  if (!activity) return '<div class="empty">请先在活动广场选择可申报活动</div>';
   const locked = state.summaryPhase;
+  const preview = calculatePreviewScore(activity);
   return `
     <div class="split-panel">
       <div>
         <p class="section-label">路径 A：从活动名录发起申请</p>
-        <div class="form-grid">
-          <div class="field">
-            <label>活动名称</label>
-            <input class="input" value="${activity.name}" ${locked ? "disabled" : "readonly"} />
+        <form id="applicationForm">
+          <div class="form-grid">
+            <div class="field">
+              <label>活动名称</label>
+              <input class="input" value="${esc(activity.name)}" readonly />
+            </div>
+            <div class="field">
+              <label>级别 / 类别</label>
+              <input class="input" value="${esc(activity.level)} · ${esc(activity.category)}" readonly />
+            </div>
+            <div class="field">
+              <label>获奖等级</label>
+              <select class="select" name="awardLevel" ${locked ? "disabled" : ""}>${renderOptions(["一等奖", "二等奖", "三等奖", "其他名次"], state.draft.awardLevel)}</select>
+            </div>
+            <div class="field">
+              <label>项目类型</label>
+              <select class="select" name="projectType" ${locked ? "disabled" : ""}>${renderOptions(["个人项目", "集体项目"], state.draft.projectType)}</select>
+            </div>
+            <div class="field">
+              <label>集体项目本人位次</label>
+              <input class="input" name="rank" type="number" min="1" value="${esc(state.draft.rank)}" ${locked ? "disabled" : ""} />
+            </div>
+            <div class="field">
+              <label>证明材料</label>
+              <input class="input" name="materials" value="${esc(state.draft.materials)}" ${locked ? "disabled" : ""} />
+            </div>
+            <div class="field full">
+              <label>补充说明</label>
+              <textarea class="textarea" name="note" ${locked ? "disabled" : ""}>${esc(state.draft.note)}</textarea>
+            </div>
           </div>
-          <div class="field">
-            <label>级别 / 类别</label>
-            <input class="input" value="${activity.level} · ${activity.category}" ${locked ? "disabled" : "readonly"} />
+          <div class="button-row" style="margin-top: 14px">
+            <button class="primary" type="submit" ${locked ? "disabled" : ""}>提交申请</button>
+            <button class="secondary" type="button" data-save-draft>保存草稿</button>
           </div>
-          <div class="field">
-            <label>获奖等级</label>
-            <select class="select" ${locked ? "disabled" : ""}><option>一等奖</option><option>二等奖</option><option>三等奖</option><option>其他名次</option></select>
-          </div>
-          <div class="field">
-            <label>项目类型</label>
-            <select class="select" ${locked ? "disabled" : ""}><option>个人项目</option><option>集体项目</option></select>
-          </div>
-          <div class="field">
-            <label>集体项目本人位次</label>
-            <input class="input" value="1" ${locked ? "disabled" : ""} />
-          </div>
-          <div class="field">
-            <label>证明材料</label>
-            <input class="input" value="证书图片、公示截图、官方报道链接" ${locked ? "disabled" : ""} />
-          </div>
-          <div class="field full">
-            <label>补充说明</label>
-            <textarea class="textarea" ${locked ? "disabled" : ""}>已上传奖状图片，并附主办方官网公示链接。</textarea>
-          </div>
-        </div>
-        <div class="button-row" style="margin-top: 14px">
-          <button class="primary" ${locked ? "disabled" : ""}>提交申请</button>
-          <button class="secondary">保存草稿</button>
-        </div>
+        </form>
       </div>
       <div>
         <p class="section-label">实时计分预览</p>
         <div class="score-box">
-          <div class="score-value">10 分</div>
-          <p>规则版本：2026 V1 · 省级一等奖 · 个人项目</p>
-          <span class="tag amber">与创新类竞赛互斥，最终最高分取一</span>
+          <div class="score-value">${formatNumber(preview)} 分</div>
+          <p>规则版本：${esc(activeRuleName())} · ${esc(activity.level)}${esc(state.draft.awardLevel)} · ${esc(state.draft.projectType)}</p>
+          <span class="tag amber">最终分值以后端规则计算为准</span>
         </div>
         <hr />
         <p class="section-label">路径 B：补录新活动</p>
-        <p>填写活动名称、主办方、活动级别、类别、活动时间和来源链接后，活动先进入“待审核上架”，申请暂挂，管理员通过后自动进入班委初审。</p>
-        <button class="ghost" ${locked ? "disabled" : ""}>切换到补录表单</button>
+        <form id="activityForm" class="compact-form">
+          <input class="input" name="name" placeholder="活动名称" ${locked ? "disabled" : ""} />
+          <input class="input" name="organizer" placeholder="主办方" ${locked ? "disabled" : ""} />
+          <select class="select" name="level" ${locked ? "disabled" : ""}>${renderOptions(["国家级", "省级", "校级", "院级"], "校级")}</select>
+          <select class="select" name="category" ${locked ? "disabled" : ""}>${renderOptions(["身心素养", "文艺素养", "劳动素养", "创新素养"], "劳动素养")}</select>
+          <input class="input" name="deadline" type="date" ${locked ? "disabled" : ""} />
+          <input class="input" name="source" placeholder="来源链接" ${locked ? "disabled" : ""} />
+          <button class="ghost" type="submit" ${locked ? "disabled" : ""}>提交补录</button>
+        </form>
       </div>
     </div>
   `;
 }
 
+function renderOptions(options, selected) {
+  return options.map((item) => `<option ${item === selected ? "selected" : ""}>${esc(item)}</option>`).join("");
+}
+
+function activeRuleName() {
+  return state.data.rules.find((item) => item.active)?.name || "当前规则";
+}
+
 function renderMyApplications() {
-  const mine = applications.filter((item) => item.student === "李明");
+  const mine = state.data.applications.filter((item) => item.studentId === currentStudent.studentId);
   return `
     <div class="table-wrap">
       <table>
@@ -387,16 +482,16 @@ function renderMyApplications() {
             .map(
               (item) => `
                 <tr>
-                  <td>${item.activity}<br /><span class="tag">${item.category}</span></td>
-                  <td>${item.submittedAt}</td>
-                  <td>${statusTag(item.status)} ${item.countdown ? `<br /><span class="meta">${item.countdown}</span>` : ""}</td>
-                  <td>${item.score || "待定"}</td>
-                  <td>${item.reviewerOpinion || "暂无"}<br />${item.adminOpinion || ""}</td>
-                  <td>${item.status === "已驳回" ? '<button class="primary">修改后重新提交</button>' : '<button class="secondary">查看详情</button>'}</td>
+                  <td>${esc(item.activity)}<br /><span class="tag">${esc(item.category)}</span></td>
+                  <td>${esc(item.submittedAt)}</td>
+                  <td>${statusTag(item.status)} ${item.publicityUntil ? `<br /><span class="meta">${publicityCountdown(item.publicityUntil)}</span>` : ""}</td>
+                  <td>${item.score ? formatNumber(item.score) : "待定"}</td>
+                  <td>${esc(item.reviewerOpinion || "暂无")}<br />${esc(item.adminOpinion || "")}</td>
+                  <td>${item.status === "已驳回" ? `<button class="primary" data-apply="${esc(item.activityId || state.selectedActivityId)}">修改后重新提交</button>` : `<button class="secondary" data-app-detail="${esc(item.id)}">查看详情</button>`}</td>
                 </tr>
               `,
             )
-            .join("")}
+            .join("") || '<tr><td colspan="6">暂无申请记录</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -413,23 +508,27 @@ function renderMyApplications() {
 }
 
 function renderScores() {
-  const total = scoreModules.reduce((sum, [, score]) => sum + score, 0);
+  const score = state.data.score;
+  if (!score) return '<div class="empty">暂无成绩数据</div>';
+  const included = state.data.applications.filter(
+    (item) => item.studentId === currentStudent.studentId && ["已通过", "公示中"].includes(item.status),
+  );
   return `
     <div class="stats">
-      <div class="stat"><span>素质能力总分</span><strong>${total}</strong></div>
-      <div class="stat"><span>学业成绩</span><strong>86.4</strong></div>
-      <div class="stat"><span>预估综测成绩</span><strong>86.2</strong></div>
-      <div class="stat"><span>页面状态</span><strong>${state.summaryPhase ? "锁定" : "开放"}</strong></div>
+      <div class="stat"><span>素质能力总分</span><strong>${formatNumber(score.qualityScore)}</strong></div>
+      <div class="stat"><span>学业成绩</span><strong>${formatNumber(score.academicScore)}</strong></div>
+      <div class="stat"><span>预估综测成绩</span><strong>${formatNumber(score.assessmentScore)}</strong></div>
+      <div class="stat"><span>页面状态</span><strong>${score.locked ? "锁定" : "开放"}</strong></div>
     </div>
     <div class="panel">
       <p class="section-label">四模块进度</p>
       <div class="progress-list">
-        ${scoreModules
+        ${score.modules
           .map(
-            ([name, score, max]) => `
+            (item) => `
               <div class="progress-row">
-                <div class="progress-head"><span>${name}</span><span>${score}/${max} · 距上限 ${max - score} 分</span></div>
-                <div class="progress-track"><div class="progress-fill" style="width:${(score / max) * 100}%"></div></div>
+                <div class="progress-head"><span>${esc(item.name)}</span><span>${formatNumber(item.score)}/${formatNumber(item.max)} · 距上限 ${formatNumber(item.max - item.score)} 分</span></div>
+                <div class="progress-track"><div class="progress-fill" style="width:${Math.min(100, (item.score / item.max) * 100)}%"></div></div>
               </div>
             `,
           )
@@ -440,10 +539,9 @@ function renderScores() {
       <table>
         <thead><tr><th>已计入条目</th><th>模块</th><th>实际加分</th><th>入账说明</th></tr></thead>
         <tbody>
-          ${applications
-            .filter((item) => item.student === "李明" && item.status === "公示中")
-            .map((item) => `<tr><td>${item.activity}</td><td>${item.category}</td><td>${item.score}</td><td>公示期满无异议后入账</td></tr>`)
-            .join("")}
+          ${included
+            .map((item) => `<tr><td>${esc(item.activity)}</td><td>${esc(item.category)}</td><td>${formatNumber(item.score)}</td><td>${item.status === "公示中" ? "公示期满无异议后入账" : "已通过复审"}</td></tr>`)
+            .join("") || '<tr><td colspan="4">暂无计入条目</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -451,25 +549,24 @@ function renderScores() {
 }
 
 function renderPublicity() {
-  const publicItems = applications.filter((item) => item.status === "公示中");
   return `
     <div class="table-wrap">
       <table>
         <thead><tr><th>姓名</th><th>活动名称</th><th>申请加分</th><th>剩余公示时间</th><th>异议</th></tr></thead>
         <tbody>
-          ${publicItems
+          ${state.data.publicity
             .map(
               (item) => `
                 <tr>
-                  <td>${item.student}</td>
-                  <td>${item.activity}</td>
-                  <td>${item.score}</td>
-                  <td>${item.countdown}</td>
-                  <td><button class="danger">提出异议</button></td>
+                  <td>${esc(item.student)}</td>
+                  <td>${esc(item.activity)}</td>
+                  <td>${formatNumber(item.score)}</td>
+                  <td>${publicityCountdown(item.publicityUntil)}</td>
+                  <td><button class="danger" data-objection="${esc(item.id)}">提出异议</button></td>
                 </tr>
               `,
             )
-            .join("")}
+            .join("") || '<tr><td colspan="5">暂无公示中申请</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -477,44 +574,60 @@ function renderPublicity() {
 }
 
 function renderReviewDesk() {
-  const pending = applications.filter((item) => item.status === "待班委审核");
+  const pending = state.data.applications.filter((item) => item.status === "待班委审核");
+  const publicity = state.data.applications.filter((item) => item.status === "公示中");
   return `
     <div class="stats">
       <div class="stat"><span>本班待审核</span><strong>${pending.length}</strong></div>
-      <div class="stat"><span>公示中</span><strong>1</strong></div>
-      <div class="stat"><span>本周通过</span><strong>12</strong></div>
-      <div class="stat"><span>特殊情况</span><strong>2</strong></div>
+      <div class="stat"><span>公示中</span><strong>${publicity.length}</strong></div>
+      <div class="stat"><span>本周通过</span><strong>${state.data.applications.filter((item) => item.status === "已通过").length}</strong></div>
+      <div class="stat"><span>特殊情况</span><strong>${state.data.applications.filter((item) => item.status === "特殊情况处理中").length}</strong></div>
     </div>
     <div class="grid">
-      ${pending
-        .map(
-          (item) => `
-            <article class="card">
-              <div class="card-header"><h3>${item.student}</h3>${statusTag(item.status)}</div>
-              <div class="meta"><span>${item.className}</span><span>${item.submittedAt}</span><span>${item.category}</span></div>
-              <p>${item.activity}</p>
-              <div class="score-box">
-                <strong>建议分值：${item.score} 分</strong>
-                <p>规则说明：需核验活动名录、证书图片、官方公示截图或报道链接。</p>
-              </div>
-              <div class="button-row">
-                <button class="primary">通过</button>
-                <button class="danger">驳回</button>
-                <button class="secondary">标记特殊情况</button>
-              </div>
-            </article>
-          `,
-        )
-        .join("") || '<div class="empty">暂无待审核申请</div>'}
+      ${pending.map(renderReviewCard).join("") || '<div class="empty">暂无待审核申请</div>'}
+      ${publicity.map(renderPublicityFinishCard).join("")}
     </div>
   `;
 }
 
+function renderReviewCard(item) {
+  return `
+    <article class="card">
+      <div class="card-header"><h3>${esc(item.student)}</h3>${statusTag(item.status)}</div>
+      <div class="meta"><span>${esc(item.className)}</span><span>${esc(item.submittedAt)}</span><span>${esc(item.category)}</span></div>
+      <p>${esc(item.activity)}</p>
+      <div class="score-box">
+        <strong>建议分值：${formatNumber(item.score)} 分</strong>
+        <p>规则说明：需核验活动名录、证书图片、官方公示截图或报道链接。</p>
+      </div>
+      <div class="button-row">
+        <button class="primary" data-app-action="review-pass" data-app-id="${esc(item.id)}">通过</button>
+        <button class="danger" data-app-action="review-reject" data-app-id="${esc(item.id)}">驳回</button>
+        <button class="secondary" data-app-action="mark-special" data-app-id="${esc(item.id)}">标记特殊情况</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderPublicityFinishCard(item) {
+  return `
+    <article class="card">
+      <div class="card-header"><h3>${esc(item.student)}</h3>${statusTag(item.status)}</div>
+      <p>${esc(item.activity)}</p>
+      <div class="meta"><span>${publicityCountdown(item.publicityUntil)}</span><span>建议分值 ${formatNumber(item.score)} 分</span></div>
+      <div class="button-row">
+        <button class="secondary" data-app-action="publicity-finish" data-app-id="${esc(item.id)}">结束公示并送复审</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderClassHistory() {
-  return renderApplicationTable(applications.filter((item) => item.className === "软件 2301"), true);
+  return renderApplicationTable(state.data.applications.filter((item) => item.className === currentStudent.className));
 }
 
 function renderActivityAdmin() {
+  const pendingActivities = state.data.activities.filter((item) => item.status === "待审核上架");
   return `
     <div class="split-panel">
       <div>
@@ -523,16 +636,21 @@ function renderActivityAdmin() {
       </div>
       <div>
         <p class="section-label">学生申报待审</p>
-        <div class="card">
-          <h3>学院志愿服务活动补录</h3>
-          <div class="meta"><span>学生填报：院级</span><span>劳动素养</span><span>待审核上架</span></div>
-          <p>管理员可修改级别、确认上架，或驳回并要求学生补充材料。</p>
-          <div class="button-row">
-            <button class="primary">确认上架</button>
-            <button class="secondary">修改后上架</button>
-            <button class="danger">驳回</button>
-          </div>
-        </div>
+        ${pendingActivities
+          .map(
+            (item) => `
+              <div class="card">
+                <h3>${esc(item.name)}</h3>
+                <div class="meta"><span>${esc(item.level)}</span><span>${esc(item.category)}</span>${statusTag(item.status)}</div>
+                <p>${esc(item.organizer || "主办方待确认")} · ${esc(item.source || "来源待补充")}</p>
+                <div class="button-row">
+                  <button class="primary" data-activity-status="已上架" data-activity-id="${esc(item.id)}">确认上架</button>
+                  <button class="danger" data-activity-status="已驳回" data-activity-id="${esc(item.id)}">驳回</button>
+                </div>
+              </div>
+            `,
+          )
+          .join("") || '<div class="empty">暂无待审核活动</div>'}
         <div class="card">
           <h3>爬虫抓取接口</h3>
           <p>预留半自动抓取入口，后续可将公众号链接解析结果放入待确认队列。</p>
@@ -544,26 +662,28 @@ function renderActivityAdmin() {
 }
 
 function renderRules() {
+  const activeRule = state.data.rules.find((item) => item.active) || state.data.rules[0];
   const rows = ["国家级", "省级", "校级", "院级"]
-    .map(
-      (level, index) => `
+    .map((level) => {
+      const matrix = activeRule?.matrix || {};
+      return `
         <tr>
           <td>${level}</td>
-          <td><input class="input" value="${16 - index * 3}" /></td>
-          <td><input class="input" value="${12 - index * 2}" /></td>
-          <td><input class="input" value="${8 - index}" /></td>
-          <td><input class="input" value="${5 - index}" /></td>
+          <td><input class="input" data-rule="${level}:一等奖" value="${matrix[`${level}:一等奖`] ?? ""}" /></td>
+          <td><input class="input" data-rule="${level}:二等奖" value="${matrix[`${level}:二等奖`] ?? ""}" /></td>
+          <td><input class="input" data-rule="${level}:三等奖" value="${matrix[`${level}:三等奖`] ?? ""}" /></td>
+          <td><input class="input" data-rule="${level}:其他名次" value="${matrix[`${level}:其他名次`] ?? ""}" /></td>
         </tr>
-      `,
-    )
+      `;
+    })
     .join("");
   return `
     <div class="panel">
-      <p class="section-label">规则版本：2026 V1</p>
+      <p class="section-label">规则版本：${esc(activeRule?.name || "未发布")}</p>
       <div class="button-row">
-        <button class="primary">发布新版本</button>
-        <button class="secondary">查看历史版本</button>
-        <button class="ghost">复制上一年规则</button>
+        <button class="primary" data-publish-rules>发布新版本</button>
+        <button class="secondary" data-show-rules>查看历史版本</button>
+        <button class="ghost" data-copy-rule>复制上一年规则</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -581,29 +701,30 @@ function renderRules() {
 }
 
 function renderRecheck() {
-  const items = applications.filter((item) => item.status === "待管理员审核");
+  const items = state.data.applications.filter((item) => ["待管理员审核", "特殊情况处理中"].includes(item.status));
   return `
     <div class="grid">
       ${items
         .map(
           (item) => `
             <article class="card">
-              <div class="card-header"><h3>${item.student}</h3>${statusTag(item.status)}</div>
-              <p>${item.activity}</p>
-              <div class="meta"><span>班委意见：${item.reviewerOpinion}</span><span>建议分值 ${item.score} 分</span></div>
-              <textarea class="textarea" placeholder="修改分值或特殊情况说明"></textarea>
+              <div class="card-header"><h3>${esc(item.student)}</h3>${statusTag(item.status)}</div>
+              <p>${esc(item.activity)}</p>
+              <div class="meta"><span>班委意见：${esc(item.reviewerOpinion || item.specialReason || "暂无")}</span><span>建议分值 ${formatNumber(item.score)} 分</span></div>
+              <input class="input" data-admin-score="${esc(item.id)}" type="number" min="0" step="0.5" value="${esc(item.score)}" />
+              <textarea class="textarea" data-admin-note="${esc(item.id)}" placeholder="修改分值或特殊情况说明"></textarea>
               <div class="button-row">
-                <button class="primary">采纳建议并通过</button>
-                <button class="secondary">修改分值后通过</button>
-                <button class="danger">驳回</button>
+                <button class="primary" data-app-action="admin-pass" data-app-id="${esc(item.id)}">采纳建议并通过</button>
+                <button class="secondary" data-app-action="admin-pass-custom" data-app-id="${esc(item.id)}">修改分值后通过</button>
+                <button class="danger" data-app-action="admin-reject" data-app-id="${esc(item.id)}">驳回</button>
               </div>
             </article>
           `,
         )
-        .join("")}
+        .join("") || '<div class="empty">暂无待复审申请</div>'}
       <article class="card">
         <h3>异议处理</h3>
-        <p>李明的创新创业训练计划申请收到 1 条异议，需管理员确认维持原判或重新核查。</p>
+        <p>公示异议会进入一事一议流程，由管理员确认维持原判或重新核查。</p>
         <div class="button-row"><button class="primary">维持原判</button><button class="secondary">重新核查</button></div>
       </article>
     </div>
@@ -611,27 +732,40 @@ function renderRecheck() {
 }
 
 function renderData() {
+  const rows = [...state.data.scoreRows].sort((a, b) => b.assessmentScore - a.assessmentScore);
+  const average = rows.length ? rows.reduce((sum, item) => sum + item.qualityScore, 0) / rows.length : 0;
   return `
     <div class="stats">
-      <div class="stat"><span>全年级学生</span><strong>286</strong></div>
-      <div class="stat"><span>平均素质分</span><strong>72.4</strong></div>
-      <div class="stat"><span>异常预警</span><strong>5</strong></div>
-      <div class="stat"><span>待导出册</span><strong>1</strong></div>
+      <div class="stat"><span>已有申请学生</span><strong>${rows.length}</strong></div>
+      <div class="stat"><span>平均素质分</span><strong>${formatNumber(average)}</strong></div>
+      <div class="stat"><span>异常预警</span><strong>${state.data.applications.filter((item) => item.status === "特殊情况处理中").length}</strong></div>
+      <div class="stat"><span>待导出册</span><strong>${state.summaryPhase ? "1" : "0"}</strong></div>
     </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>排名</th><th>学生</th><th>班级</th><th>四模块</th><th>素质总分</th><th>综测成绩</th></tr></thead>
         <tbody>
-          <tr><td>1</td><td>李明</td><td>软件 2301</td><td>18 / 14 / 21 / 23</td><td>76</td><td>86.2</td></tr>
-          <tr><td>2</td><td>王悦</td><td>软件 2301</td><td>20 / 16 / 18 / 18</td><td>72</td><td>85.1</td></tr>
-          <tr><td>3</td><td>赵然</td><td>软件 2302</td><td>22 / 12 / 17 / 19</td><td>70</td><td>84.7</td></tr>
+          ${rows
+            .map(
+              (item, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${esc(item.student || item.studentId)}</td>
+                  <td>${esc(item.className || "未登记")}</td>
+                  <td>${item.modules.map((module) => formatNumber(module.score)).join(" / ")}</td>
+                  <td>${formatNumber(item.qualityScore)}</td>
+                  <td>${formatNumber(item.assessmentScore)}</td>
+                </tr>
+              `,
+            )
+            .join("") || '<tr><td colspan="6">暂无成绩数据</td></tr>'}
         </tbody>
       </table>
     </div>
     <div class="grid">
-      <div class="card"><h3>导出综测成绩册</h3><p>包含每位学生四模块分值、素质总分、学业成绩和综测成绩。</p><button class="primary">导出成绩册</button></div>
-      <div class="card"><h3>导出申请明细</h3><p>包含申请材料状态、审核意见、公示和异议处理结果。</p><button class="secondary">导出明细</button></div>
-      <div class="card"><h3>导出操作日志</h3><p>用于审计班委与管理员的全部关键操作。</p><button class="secondary">导出日志</button></div>
+      <div class="card"><h3>导出综测成绩册</h3><p>包含每位学生四模块分值、素质总分、学业成绩和综测成绩。</p><a class="primary link-button" href="/api/admin/export/scores.csv">导出成绩册</a></div>
+      <div class="card"><h3>导出申请明细</h3><p>包含申请材料状态、审核意见、公示和异议处理结果。</p><button class="secondary" data-export-detail>导出明细</button></div>
+      <div class="card"><h3>导出操作日志</h3><p>用于审计班委与管理员的全部关键操作。</p><button class="secondary" data-show-logs>查看日志</button></div>
     </div>
   `;
 }
@@ -643,16 +777,7 @@ function renderAccounts() {
       <div class="card"><h3>班委授权</h3><p>为指定学生设置审核学生角色，权限限定在本班级。</p><button class="secondary">设置角色</button></div>
       <div class="card"><h3>综测周期</h3><p>配置申报期、公示期、复审期、学院公示期和导出节点。</p><button class="secondary">编辑周期</button></div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>对象</th><th>说明</th></tr></thead>
-        <tbody>
-          <tr><td>2026-04-26 10:18</td><td>辅导员</td><td>修改规则</td><td>2026 V1</td><td>调整省级二等奖分值</td></tr>
-          <tr><td>2026-04-25 16:42</td><td>班委 陈欣</td><td>初审通过</td><td>李明申请</td><td>材料齐全</td></tr>
-          <tr><td>2026-04-24 09:12</td><td>辅导员</td><td>设置角色</td><td>陈欣</td><td>授权软件 2301 班委</td></tr>
-        </tbody>
-      </table>
-    </div>
+    ${renderLogTable()}
   `;
 }
 
@@ -662,19 +787,19 @@ function renderActivityTable() {
       <table>
         <thead><tr><th>活动名称</th><th>级别</th><th>类别</th><th>申报人数</th><th>状态</th></tr></thead>
         <tbody>
-          ${activities
+          ${state.data.activities
             .map(
               (item) => `
                 <tr>
-                  <td>${item.name}</td>
-                  <td>${item.level}</td>
-                  <td>${item.category}</td>
+                  <td>${esc(item.name)}</td>
+                  <td>${esc(item.level)}</td>
+                  <td>${esc(item.category)}</td>
                   <td>${item.applications}</td>
-                  <td><span class="tag green">已上架</span></td>
+                  <td>${statusTag(item.status || "已上架")}</td>
                 </tr>
               `,
             )
-            .join("")}
+            .join("") || '<tr><td colspan="5">暂无活动</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -691,27 +816,108 @@ function renderApplicationTable(items) {
             .map(
               (item) => `
                 <tr>
-                  <td>${item.student}</td>
-                  <td>${item.className}</td>
-                  <td>${item.activity}</td>
+                  <td>${esc(item.student)}</td>
+                  <td>${esc(item.className)}</td>
+                  <td>${esc(item.activity)}</td>
                   <td>${statusTag(item.status)}</td>
-                  <td>${item.score || "待定"}</td>
-                  <td>${item.reviewerOpinion || item.adminOpinion || "暂无"}</td>
+                  <td>${item.score ? formatNumber(item.score) : "待定"}</td>
+                  <td>${esc(item.reviewerOpinion || item.adminOpinion || item.specialReason || "暂无")}</td>
                 </tr>
               `,
             )
-            .join("")}
+            .join("") || '<tr><td colspan="6">暂无申请记录</td></tr>'}
         </tbody>
       </table>
     </div>
   `;
 }
 
-function bindPageEvents() {
-  document.querySelectorAll("[data-page-jump]").forEach((button) => {
-    button.addEventListener("click", () => setPage(button.dataset.pageJump));
-  });
+function renderLogTable() {
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>对象</th><th>说明</th></tr></thead>
+        <tbody>
+          ${state.data.logs
+            .slice()
+            .reverse()
+            .map(
+              (item) => `
+                <tr>
+                  <td>${formatDateTime(item.createdAt)}</td>
+                  <td>${esc(item.actor)}</td>
+                  <td>${esc(item.action)}</td>
+                  <td>${esc(item.target)}</td>
+                  <td>${esc(item.note)}</td>
+                </tr>
+              `,
+            )
+            .join("") || '<tr><td colspan="5">暂无日志</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
 
+function collectDraft(form) {
+  const data = new FormData(form);
+  state.draft.awardLevel = data.get("awardLevel") || state.draft.awardLevel;
+  state.draft.projectType = data.get("projectType") || state.draft.projectType;
+  state.draft.rank = Number(data.get("rank") || 1);
+  state.draft.materials = data.get("materials") || "";
+  state.draft.note = data.get("note") || "";
+}
+
+function materialList(value) {
+  return String(value || "")
+    .split(/[、,，\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function handleApplicationAction(button) {
+  const id = button.dataset.appId;
+  const action = button.dataset.appAction;
+  let body = { actor: state.role === "admin" ? "管理员" : "班委 陈欣" };
+  let endpointAction = action;
+
+  if (["review-reject", "mark-special", "admin-reject"].includes(action)) {
+    const reason = prompt("请输入处理原因");
+    if (!reason) return;
+    body.reason = reason;
+  }
+  if (action === "review-pass") {
+    body.reason = "材料齐全，建议通过。";
+  }
+  if (action === "publicity-finish") {
+    body.reason = "公示期结束，无有效异议。";
+  }
+  if (action === "admin-pass") {
+    body.reason = "管理员复审通过";
+  }
+  if (action === "admin-pass-custom") {
+    endpointAction = "admin-pass";
+    const scoreInput = document.querySelector(`[data-admin-score="${CSS.escape(id)}"]`);
+    const noteInput = document.querySelector(`[data-admin-note="${CSS.escape(id)}"]`);
+    body.score = Number(scoreInput?.value || 0);
+    body.reason = noteInput?.value.trim() || prompt("请输入改分原因");
+    if (!body.reason) return;
+  }
+
+  button.disabled = true;
+  try {
+    await api(`/api/applications/${encodeURIComponent(id)}/${endpointAction}`, {
+      method: "POST",
+      body,
+    });
+    await refreshData("操作已提交");
+  } catch (error) {
+    state.error = error.message;
+    render();
+  }
+}
+
+function bindPageEvents() {
   document.querySelectorAll("[data-apply]").forEach((button) => {
     button.addEventListener("click", () => {
       state.selectedActivityId = button.dataset.apply;
@@ -721,9 +927,183 @@ function bindPageEvents() {
 
   document.querySelectorAll("[data-detail]").forEach((button) => {
     button.addEventListener("click", () => {
-      const activity = activities.find((item) => item.id === button.dataset.detail);
+      const activity = state.data.activities.find((item) => item.id === button.dataset.detail);
       if (!activity) return;
       alert(`${activity.name}\n\n${activity.rule}\n\n官方通知：${activity.source}`);
+    });
+  });
+
+  document.querySelectorAll("[data-filter-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.filters[button.dataset.filterKey] = button.dataset.filterValue;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-search]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.filters.q = button.dataset.search;
+      render();
+    });
+  });
+
+  const searchInput = $("#activitySearch");
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      state.filters.q = searchInput.value.trim();
+      searchTimer = window.setTimeout(() => render(), 300);
+    });
+  }
+
+  document.querySelectorAll("[data-sort]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.sort = button.dataset.sort;
+      render();
+    });
+  });
+
+  const applicationForm = $("#applicationForm");
+  if (applicationForm) {
+    applicationForm.addEventListener("change", () => {
+      collectDraft(applicationForm);
+      render();
+    });
+    applicationForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      collectDraft(applicationForm);
+      const activity = selectedActivity();
+      try {
+        await api("/api/applications", {
+          method: "POST",
+          body: {
+            student: currentStudent.student,
+            studentId: currentStudent.studentId,
+            className: currentStudent.className,
+            activityId: activity.id,
+            awardLevel: state.draft.awardLevel,
+            projectType: state.draft.projectType,
+            rank: Number(state.draft.rank || 1),
+            materials: materialList(state.draft.materials),
+          },
+        });
+        state.page = "myApplications";
+        await refreshData("申请已提交，等待班委审核");
+      } catch (error) {
+        state.error = error.message;
+        render();
+      }
+    });
+  }
+
+  const activityForm = $("#activityForm");
+  if (activityForm) {
+    activityForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = new FormData(activityForm);
+      try {
+        await api("/api/activities", {
+          method: "POST",
+          body: {
+            name: data.get("name"),
+            organizer: data.get("organizer"),
+            level: data.get("level"),
+            category: data.get("category"),
+            range: "待管理员确认",
+            deadline: data.get("deadline"),
+            source: data.get("source"),
+            rule: "补录活动，待管理员维护规则说明。",
+          },
+        });
+        await refreshData("补录活动已提交，等待管理员上架");
+      } catch (error) {
+        state.error = error.message;
+        render();
+      }
+    });
+  }
+
+  document.querySelectorAll("[data-save-draft]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const form = $("#applicationForm");
+      if (form) collectDraft(form);
+      state.toast = "草稿已保存在当前页面";
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-app-action]").forEach((button) => {
+    button.addEventListener("click", () => handleApplicationAction(button));
+  });
+
+  document.querySelectorAll("[data-activity-status]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await api(`/api/activities/${encodeURIComponent(button.dataset.activityId)}`, {
+          method: "PATCH",
+          body: { status: button.dataset.activityStatus },
+        });
+        await refreshData("活动状态已更新");
+      } catch (error) {
+        state.error = error.message;
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-publish-rules]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const matrix = {};
+      document.querySelectorAll("[data-rule]").forEach((input) => {
+        matrix[input.dataset.rule] = Number(input.value || 0);
+      });
+      try {
+        await api("/api/admin/rules", {
+          method: "POST",
+          body: {
+            name: `规则 ${new Date().toLocaleDateString("zh-CN")}`,
+            matrix,
+            moduleMax: { 身心素养: 25, 文艺素养: 25, 劳动素养: 25, 创新素养: 25 },
+          },
+        });
+        await refreshData("新规则版本已发布");
+      } catch (error) {
+        state.error = error.message;
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-show-rules]").forEach((button) => {
+    button.addEventListener("click", () => {
+      alert(state.data.rules.map((item) => `${item.name} · ${item.publishedAt} · ${item.active ? "当前" : "历史"}`).join("\n"));
+    });
+  });
+
+  document.querySelectorAll("[data-copy-rule]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.toast = "已复制当前规则，可直接调整后发布";
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-objection]").forEach((button) => {
+    button.addEventListener("click", () => {
+      alert(`已记录异议线索：${button.dataset.objection}`);
+    });
+  });
+
+  document.querySelectorAll("[data-app-detail]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = state.data.applications.find((app) => app.id === button.dataset.appDetail);
+      if (!item) return;
+      alert(`${item.activity}\n状态：${item.status}\n分值：${formatNumber(item.score)}\n班委意见：${item.reviewerOpinion || "暂无"}\n管理员意见：${item.adminOpinion || "暂无"}`);
+    });
+  });
+
+  document.querySelectorAll("[data-show-logs]").forEach((button) => {
+    button.addEventListener("click", () => {
+      alert(state.data.logs.slice(-8).map((item) => `${formatDateTime(item.createdAt)} ${item.actor} ${item.action} ${item.target}`).join("\n"));
     });
   });
 }
@@ -737,13 +1117,27 @@ $("#navList").addEventListener("click", (event) => {
   if (button) setPage(button.dataset.page);
 });
 
-$("#phaseToggle").addEventListener("change", (event) => {
-  state.summaryPhase = event.target.checked;
-  render();
+$("#phaseToggle").addEventListener("change", async (event) => {
+  const checked = event.target.checked;
+  event.target.disabled = true;
+  try {
+    const meta = await api("/api/meta", {
+      method: "PATCH",
+      body: { summaryPhase: checked },
+    });
+    state.summaryPhase = Boolean(meta.summaryPhase);
+    await refreshData("综测周期状态已更新");
+  } catch (error) {
+    state.error = error.message;
+    render();
+  } finally {
+    event.target.disabled = false;
+  }
 });
 
 $("#notificationButton").addEventListener("click", () => {
-  alert("通知\n1. 李明申请进入班级公示\n2. 王悦申请等待管理员复审\n3. 规则版本 2026 V1 已生效");
+  const latest = state.data.logs.slice(-3).reverse();
+  alert(`通知\n${latest.map((item, index) => `${index + 1}. ${item.action}：${item.target}`).join("\n") || "暂无新通知"}`);
 });
 
-render();
+loadAll();
