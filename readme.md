@@ -1,6 +1,6 @@
 # SDU 综测成绩管理平台
 
-基于 **Go 后端 + 原生前端（HTML/CSS/JS）** 开发的高校综测成绩全流程管理平台，实现学生申报、班委初审、公示、管理员复审、自动计分、数据导出的一体化数字化管理。
+基于 **Gin 后端 + PostgreSQL + Vue 3/Vite/TypeScript 前端** 开发的高校综测成绩全流程管理平台，实现学生申报、班委初审、公示、管理员复审、自动计分、数据导出的一体化数字化管理。
 
 ------
 
@@ -71,15 +71,17 @@
 ### 后端
 
 - 语言：**Go (Golang)**
-- 依赖管理：`go.mod`
-- 热重载：`air`（开发环境）
-- 调试工具：`delve`
+- Web 框架：**Gin**
+- ORM：**GORM**
+- 数据库：**PostgreSQL**（通过 Docker Compose 本地运行）
+- 数据库迁移：`go run ./cmd/migrate up`
 
 ### 前端
 
-- 结构：`HTML5`
-- 样式：`CSS3`
-- 交互：原生 `JavaScript`
+- 框架：**Vue 3**
+- 构建：**Vite**
+- 语言：**TypeScript**
+- 状态：**Pinia**
 
 ### 工程化
 
@@ -106,34 +108,36 @@ git clone https://gitee.com/你的用户名/sdu_zongce_demo.git
 cd sdu_zongce_demo
 ```
 
-### 3. 安装依赖
+### 3. 启动 PostgreSQL
 
 ```
-go mod tidy
+docker compose up -d postgres
 ```
 
-### 4. 启动项目
-
-#### 普通启动
+### 4. 初始化数据库
 
 ```
-go run main.go
+go run ./cmd/migrate up
+go run ./cmd/seed
 ```
 
-#### 热重载启动（推荐开发）
+### 5. 启动后端
 
 ```
-# 安装air
-go install github.com/cosmtrek/air@latest
-# 初始化配置
-air init
-# 启动监听
-air
+go run ./cmd/server
 ```
 
-### 5. 访问前端
+### 6. 启动前端
 
-直接打开项目目录下 `index.html` 文件，或在浏览器访问后端对应前端地址。
+```
+cd frontend
+npm install
+npm run dev
+```
+
+### 7. 访问前端
+
+开发环境访问 `http://localhost:5173`。生产环境执行 `cd frontend && npm run build` 后，Gin 会托管 `frontend/dist`。
 
 ### 6. 演示登录账号
 
@@ -149,10 +153,11 @@ air
 
 ```
 sdu_zongce_demo/
-├── app.js            # 前端交互逻辑
-├── index.html        # 前端主页面
-├── styles.css        # 前端样式
-├── main.go           # Go后端入口
+├── cmd/              # server / migrate / seed 入口
+├── internal/         # 后端 domain / service / httpapi / repository
+├── migrations/       # PostgreSQL 迁移 SQL
+├── frontend/         # Vue 3 + Vite + TypeScript 前端
+├── compose.yaml      # Docker PostgreSQL
 ├── go.mod            # Go依赖配置
 ├── API.md            # 前后端接口文档
 ├── LICENSE           # 开源协议

@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sdu-assessment-postgres
+    environment:
+      POSTGRES_DB: sdu_assessment
+      POSTGRES_USER: sdu
+      POSTGRES_PASSWORD: sdu123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sdu -d sdu_assessment"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
