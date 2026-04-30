@@ -11,6 +11,7 @@ go run .
 ## 核心接口
 
 - `GET /api/health`：健康检查
+- `POST /api/auth/login`：演示登录，按 `role` 返回普通学生、审核学生或管理员身份
 - `GET /api/meta`：获取综测周期状态
 - `PATCH /api/meta`：切换周期，例如 `{"summaryPhase":true}`
 - `GET /api/activities?q=&category=&level=`：活动名录列表
@@ -31,6 +32,16 @@ go run .
 - `POST /api/admin/rules`：发布新规则版本
 - `GET /api/admin/export/scores.csv`：导出成绩册 CSV
 - `GET /api/admin/logs`：操作日志
+
+## 登录示例
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"role":"student","account":"20230001","password":"123456"}'
+```
+
+可用角色：`student`（普通学生）、`reviewer`（审核学生）、`admin`（管理员）。
 
 ## 提交申请示例
 

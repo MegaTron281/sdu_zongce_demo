@@ -19,18 +19,42 @@ const pages = {
   ],
 };
 
-const currentStudent = {
+const loginProfiles = {
+  student: {
+    title: "普通学生",
+    account: "20230001",
+    password: "123456",
+    hint: "查看活动、提交申请、追踪个人成绩。",
+  },
+  reviewer: {
+    title: "审核学生",
+    account: "20230002",
+    password: "123456",
+    hint: "处理本班初审、公示流转和历史追溯。",
+  },
+  admin: {
+    title: "管理员",
+    account: "辅导员 王老师",
+    password: "123456",
+    hint: "维护名录、规则复审、汇总导出。",
+  },
+};
+
+let currentStudent = {
   student: "李明",
   studentId: "20230001",
   className: "软件 2301",
 };
 
 const state = {
+  user: null,
   role: "student",
   page: "activity",
   summaryPhase: false,
   selectedActivityId: "a2",
-  loading: true,
+  loading: false,
+  loginRole: "student",
+  loginError: "",
   error: "",
   toast: "",
   filters: {
@@ -121,6 +145,10 @@ function statusTag(status) {
   return `<span class="tag ${colorMap[status] || ""}">${esc(status)}</span>`;
 }
 
+function roleLabel(role) {
+  return loginProfiles[role]?.title || role;
+}
+
 async function api(path, options = {}) {
   const init = {
     method: options.method || "GET",
@@ -156,6 +184,8 @@ async function loadApplications() {
 async function loadAll() {
   state.loading = true;
   state.error = "";
+  $("#appShell").classList.remove("auth-hidden");
+  $("#loginRoot").classList.add("auth-hidden");
   render();
   try {
     const meta = await api("/api/meta");
@@ -192,7 +222,44 @@ async function loadLogs() {
   state.data.logs = await api("/api/admin/logs");
 }
 
+function applyUser(user) {
+  state.user = user;
+  state.role = user.role;
+  state.page = pages[user.role][0][0];
+  currentStudent = {
+    student: user.displayName,
+    studentId: user.studentId || "20230001",
+    className: user.className || "软件 2301",
+  };
+}
+
+async function login(role, account, password) {
+  state.loginError = "";
+  try {
+    const user = await api("/api/auth/login", {
+      method: "POST",
+      body: { role, account, password },
+    });
+    applyUser(user);
+    await loadAll();
+  } catch (error) {
+    state.loginError = error.message;
+    renderLogin();
+  }
+}
+
+function logout() {
+  state.user = null;
+  state.loading = false;
+  state.error = "";
+  state.toast = "";
+  $("#appShell").classList.add("auth-hidden");
+  $("#loginRoot").classList.remove("auth-hidden");
+  renderLogin();
+}
+
 function setRole(role) {
+  if (!state.user || role !== state.user.role) return;
   state.role = role;
   state.page = pages[role][0][0];
   render();
@@ -204,8 +271,10 @@ function setPage(page) {
 }
 
 function renderShell() {
+  if (!state.user) return;
   document.querySelectorAll(".role-button").forEach((button) => {
     button.classList.toggle("active", button.dataset.role === state.role);
+    button.disabled = button.dataset.role !== state.role;
   });
 
   const nav = $("#navList");
@@ -220,6 +289,8 @@ function renderShell() {
   $("#pageTitle").textContent = current ? current[1] : "";
   $("#phaseLabel").textContent = state.summaryPhase ? "综测汇总期" : "日常申报期";
   $("#phaseToggle").checked = state.summaryPhase;
+  $("#userBadge").textContent = `${roleLabel(state.user.role)} · ${state.user.displayName}`;
+  $("#phaseToggle").disabled = state.role !== "admin";
 
   const pending = state.data.applications.filter((item) =>
     ["待班委审核", "公示中", "待管理员审核", "特殊情况处理中"].includes(item.status),
@@ -245,6 +316,10 @@ function renderShell() {
 }
 
 function render() {
+  if (!state.user) {
+    renderLogin();
+    return;
+  }
   renderShell();
   if (state.loading) {
     $("#content").innerHTML = '<div class="loading-state">正在加载平台数据...</div>';
@@ -266,6 +341,63 @@ function render() {
   };
   $("#content").innerHTML = renderMap[state.page]();
   bindPageEvents();
+}
+
+function renderLogin() {
+  const root = $("#loginRoot");
+  const profile = loginProfiles[state.loginRole];
+  $("#appShell").classList.add("auth-hidden");
+  root.classList.remove("auth-hidden");
+  root.innerHTML = `
+    <div class="login-page">
+      <section class="login-hero">
+        <div class="brand login-brand">
+          <div class="brand-mark">SDU</div>
+          <div>
+            <h1>山东大学 · 综测服务大厅</h1>
+            <p>Comprehensive Assessment Service Hall</p>
+          </div>
+        </div>
+        <div class="login-copy">
+          <p class="eyebrow">统一身份入口</p>
+          <h2>按角色进入申报、审核和管理工作台</h2>
+          <p>演示密码为 123456。选择身份后会进入对应权限页面，普通学生、审核学生、管理员看到的导航和默认数据各不相同。</p>
+        </div>
+      </section>
+
+      <section class="login-panel">
+        <div class="login-role-grid">
+          ${Object.entries(loginProfiles)
+            .map(
+              ([role, item]) => `
+                <button class="login-role ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">
+                  <strong>${item.title}</strong>
+                  <span>${item.hint}</span>
+                </button>
+              `,
+            )
+            .join("")}
+        </div>
+        <form id="loginForm" class="login-form">
+          <div class="field">
+            <label>登录身份</label>
+            <input class="input" value="${esc(profile.title)}" readonly />
+          </div>
+          <div class="field">
+            <label>账号</label>
+            <input class="input" name="account" value="${esc(profile.account)}" />
+          </div>
+          <div class="field">
+            <label>密码</label>
+            <input class="input" name="password" type="password" value="${esc(profile.password)}" />
+          </div>
+          ${state.loginError ? `<div class="feedback error">${esc(state.loginError)}</div>` : ""}
+          <button class="primary login-submit" type="submit">登录 ${esc(profile.title)}</button>
+        </form>
+      </section>
+    </div>
+  `;
+  bindLoginEvents();
 }
 
 function renderActivitySquare() {
@@ -1108,6 +1240,22 @@ function bindPageEvents() {
   });
 }
 
+function bindLoginEvents() {
+  document.querySelectorAll("[data-login-role]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.loginRole = button.dataset.loginRole;
+      state.loginError = "";
+      renderLogin();
+    });
+  });
+
+  $("#loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    await login(state.loginRole, data.get("account"), data.get("password"));
+  });
+}
+
 document.querySelectorAll(".role-button").forEach((button) => {
   button.addEventListener("click", () => setRole(button.dataset.role));
 });
@@ -1118,6 +1266,10 @@ $("#navList").addEventListener("click", (event) => {
 });
 
 $("#phaseToggle").addEventListener("change", async (event) => {
+  if (state.role !== "admin") {
+    event.target.checked = state.summaryPhase;
+    return;
+  }
   const checked = event.target.checked;
   event.target.disabled = true;
   try {
@@ -1140,4 +1292,6 @@ $("#notificationButton").addEventListener("click", () => {
   alert(`通知\n${latest.map((item, index) => `${index + 1}. ${item.action}：${item.target}`).join("\n") || "暂无新通知"}`);
 });
 
-loadAll();
+$("#logoutButton").addEventListener("click", logout);
+
+renderLogin();

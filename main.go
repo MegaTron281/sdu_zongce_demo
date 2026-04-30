@@ -94,6 +94,13 @@ type AuditLog struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type AuthUser struct {
+	Role        string `json:"role"`
+	DisplayName string `json:"displayName"`
+	StudentID   string `json:"studentId,omitempty"`
+	ClassName   string `json:"className,omitempty"`
+}
+
 type Store struct {
 	mu           sync.RWMutex
 	activities   map[string]Activity
@@ -115,6 +122,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/health", server.handleHealth)
+	mux.HandleFunc("/api/auth/login", server.handleLogin)
 	mux.HandleFunc("/api/meta", server.handleMeta)
 	mux.HandleFunc("/api/activities", server.handleActivities)
 	mux.HandleFunc("/api/activities/", server.handleActivityByID)
@@ -135,6 +143,41 @@ func main() {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+
+	var req struct {
+		Role     string `json:"role"`
+		Account  string `json:"account"`
+		Password string `json:"password"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	user, ok := demoUsers()[req.Role]
+	if !ok {
+		writeError(w, http.StatusBadRequest, errors.New("unknown role"))
+		return
+	}
+	if strings.TrimSpace(req.Account) != "" && strings.TrimSpace(req.Account) != user.StudentID && strings.TrimSpace(req.Account) != user.DisplayName {
+		writeError(w, http.StatusUnauthorized, errors.New("account does not match selected role"))
+		return
+	}
+	if strings.TrimSpace(req.Password) != "" && req.Password != "123456" {
+		writeError(w, http.StatusUnauthorized, errors.New("invalid password"))
+		return
+	}
+
+	s.store.mu.Lock()
+	s.store.addLogLocked(user.DisplayName, "登录系统", roleLabel(user.Role), "演示账号登录")
+	s.store.mu.Unlock()
+	writeJSON(w, http.StatusOK, user)
 }
 
 func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
@@ -706,4 +749,25 @@ func requireReason(value string) string {
 
 func formatFloat(value float64) string {
 	return strconv.FormatFloat(value, 'f', 1, 64)
+}
+
+func demoUsers() map[string]AuthUser {
+	return map[string]AuthUser{
+		"student":  {Role: "student", DisplayName: "李明", StudentID: "20230001", ClassName: "软件 2301"},
+		"reviewer": {Role: "reviewer", DisplayName: "班委 陈欣", StudentID: "20230002", ClassName: "软件 2301"},
+		"admin":    {Role: "admin", DisplayName: "辅导员 王老师", ClassName: "信息工程学院"},
+	}
+}
+
+func roleLabel(role string) string {
+	switch role {
+	case "student":
+		return "普通学生"
+	case "reviewer":
+		return "审核学生"
+	case "admin":
+		return "管理员"
+	default:
+		return role
+	}
 }
