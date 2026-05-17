@@ -175,6 +175,43 @@ func TestCreateApplication_BlocksDuplicateInSameCycle(t *testing.T) {
 	}
 }
 
+func TestCreateApplication_AllowsStudentFilledActivity(t *testing.T) {
+	svc := newTestService(t)
+	seedFixture(t, svc)
+	student := domain.User{ID: "u-stu", Role: domain.RoleStudent, DisplayName: "李明", StudentID: "20230001", ClassName: "C1"}
+
+	app, err := svc.CreateApplication(student, domain.ApplicationCreateRequest{
+		ActivityName: "学生自填活动",
+		Organizer:    "学院团委",
+		Level:        "校级",
+		Category:     "劳动素养",
+		AwardLevel:   "二等奖",
+		ProjectType:  "个人项目",
+		Rank:         1,
+		Materials:    []string{"证明材料"},
+	})
+	if err != nil {
+		t.Fatalf("create application with filled activity: %v", err)
+	}
+	if app.Activity != "学生自填活动" {
+		t.Fatalf("activity=%q, want 学生自填活动", app.Activity)
+	}
+	if app.ActivityID == "" {
+		t.Fatal("expected generated activity id")
+	}
+	if app.Score != 6 {
+		t.Fatalf("score=%v, want 6", app.Score)
+	}
+
+	var activity domain.Activity
+	if err := svc.db.First(&activity, "id = ?", app.ActivityID).Error; err != nil {
+		t.Fatalf("created activity not found: %v", err)
+	}
+	if activity.Status != domain.ActivityStatusPending {
+		t.Fatalf("activity status=%s, want %s", activity.Status, domain.ActivityStatusPending)
+	}
+}
+
 func TestCreateApplication_BlockedBySummaryPhase(t *testing.T) {
 	svc := newTestService(t)
 	seedFixture(t, svc)

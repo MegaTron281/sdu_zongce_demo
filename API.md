@@ -34,13 +34,15 @@ Vue 开发地址：`http://localhost:5173`，Vite 会把 `/api` 代理到 Gin �
 - `GET /api/activities/{id}`：活动详情
 - `PATCH /api/activities/{id}`：管理员维护活动
 - `GET /api/applications?status=&studentId=&className=`：申请列表
-- `POST /api/applications`：提交申请
+- `POST /api/applications`：提交申请。学生可直接填写活动信息申报；如果传 `activityId`，则沿用已有活动名录信息
 - `POST /api/applications/{id}/review-pass`：班委初审通过，进入 2 天班级公示
 - `POST /api/applications/{id}/review-reject`：班委驳回
 - `POST /api/applications/{id}/mark-special`：标记一事一议
 - `POST /api/applications/{id}/publicity-finish`：班级公示结束，进入管理员复审
 - `POST /api/applications/{id}/admin-pass`：管理员复审通过，可手动改分
 - `POST /api/applications/{id}/admin-reject`：管理员驳回
+- `POST /api/materials/upload`：学生上传证明材料，支持 PDF、PNG、JPG，单文件最大 10MB，返回可放入 `materials` 的文件地址
+- `GET /api/materials/{name}`：已登录用户查看上传材料
 - `GET /api/publicity`：公示墙
 - `GET /api/scores/{studentId}`：学生成绩
 - `POST /api/scores/preview`：按当前 active rule 预览分值
@@ -68,7 +70,13 @@ curl -X POST http://localhost:8080/api/applications \
   -b /tmp/sdu-cookie.txt \
   -H 'Content-Type: application/json' \
   -d '{
-    "activityId":"a2",
+    "activityName":"校运会阳光体育竞赛",
+    "organizer":"体育教学部",
+    "level":"校级",
+    "category":"身心素养",
+    "deadline":"2026-06-01",
+    "source":"https://example.edu/notice/sports",
+    "rule":"比赛成绩需可在官方成绩册中核验。",
     "awardLevel":"二等奖",
     "projectType":"个人项目",
     "rank":1,

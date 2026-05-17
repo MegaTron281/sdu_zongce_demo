@@ -11,6 +11,7 @@ type Config struct {
 	SessionSecret  string
 	FrontendOrigin string
 	CookieSecure   bool
+	UploadDir      string
 }
 
 func Load() Config {
@@ -19,6 +20,7 @@ func Load() Config {
 		ServerAddr:     getenv("SERVER_ADDR", ":8080"),
 		SessionSecret:  getenv("SESSION_SECRET", "dev-session-secret"),
 		FrontendOrigin: getenv("FRONTEND_ORIGIN", "http://localhost:5173"),
+		UploadDir:      getenv("UPLOAD_DIR", "uploads/materials"),
 	}
 	cfg.CookieSecure = strings.EqualFold(os.Getenv("COOKIE_SECURE"), "true")
 	return cfg

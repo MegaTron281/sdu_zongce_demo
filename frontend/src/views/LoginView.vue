@@ -6,9 +6,9 @@ import { roleLabels, useAuthStore } from "@/stores/auth";
 import type { Role } from "@/api/types";
 
 const profiles: Record<Role, { account: string; hint: string }> = {
-  student: { account: "20230001", hint: "查看活动、提交申请、追踪个人成绩。" },
-  reviewer: { account: "20230002", hint: "处理本班初审、公示流转和历史追溯。" },
-  admin: { account: "coach-wang", hint: "维护名录、规则复审、汇总导出。" },
+  student: { account: "202300221077", hint: "查看活动、提交申请、追踪个人成绩。" },
+  reviewer: { account: "202300202018", hint: "处理本班初审、公示流转和历史追溯。" },
+  admin: { account: "zhangmiao", hint: "维护名录、规则复审、汇总导出。" },
 };
 
 const router = useRouter();
@@ -43,9 +43,11 @@ async function submit() {
   <div class="login-page">
     <section class="login-hero">
       <div class="brand login-brand">
-        <div class="brand-mark">SDU</div>
+        <div class="brand-mark">
+          <img class="brand-logo" src="/sdu_pic.svg" alt="山东大学" />
+        </div>
         <div>
-          <h1>山东大学 · 综测服务大厅</h1>
+          <h1>山东大学 · 政治学与公共管理学院 · 综测服务大厅</h1>
           <p>Comprehensive Assessment Service Hall</p>
         </div>
       </div>
@@ -80,7 +82,7 @@ async function submit() {
         </div>
         <div class="field">
           <label>密码</label>
-          <input v-model="form.password" class="input" type="password" placeholder="请输入 123456" />
+          <input v-model="form.password" class="input" type="password" placeholder="测试密码：123456" />
         </div>
         <div v-if="error" class="feedback error">{{ error }}</div>
         <button class="primary login-submit" type="submit" :disabled="loading">

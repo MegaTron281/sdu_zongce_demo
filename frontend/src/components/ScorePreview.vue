@@ -4,7 +4,8 @@ import { api } from "@/api/client";
 import { formatNumber } from "@/api/format";
 
 const props = defineProps<{
-  activityId: string;
+  activityId?: string;
+  activityLevel?: string;
   awardLevel: string;
   projectType: string;
   rank: number;
@@ -16,6 +17,7 @@ const loading = ref(false);
 
 const payload = computed(() => ({
   activityId: props.activityId,
+  activityLevel: props.activityLevel,
   awardLevel: props.awardLevel,
   projectType: props.projectType,
   rank: props.rank,
@@ -24,7 +26,7 @@ const payload = computed(() => ({
 watch(
   payload,
   async (value) => {
-    if (!value.activityId) return;
+    if (!value.activityId && !value.activityLevel) return;
     loading.value = true;
     try {
       const preview = await api.preview(value);

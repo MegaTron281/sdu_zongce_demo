@@ -20,6 +20,7 @@ type Server struct {
 func NewRouter(cfg config.Config, svc *service.Service) *gin.Engine {
 	server := &Server{cfg: &cfg, svc: svc}
 	router := gin.New()
+	router.MaxMultipartMemory = 16 << 20
 	router.Use(gin.Logger(), gin.Recovery(), server.cors())
 
 	api := router.Group("/api")
@@ -39,6 +40,8 @@ func NewRouter(cfg config.Config, svc *service.Service) *gin.Engine {
 	auth.GET("/applications", server.listApplications)
 	auth.POST("/applications", server.requireRole("student"), server.createApplication)
 	auth.POST("/applications/:id/:action", server.applicationAction)
+	auth.POST("/materials/upload", server.requireRole("student"), server.uploadMaterial)
+	auth.GET("/materials/:name", server.downloadMaterial)
 	auth.GET("/publicity", server.publicity)
 	auth.GET("/scores/:studentId", server.score)
 	auth.POST("/scores/preview", server.previewScore)

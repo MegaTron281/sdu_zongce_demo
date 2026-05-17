@@ -2,6 +2,7 @@
 import { computed, onMounted } from "vue";
 import { api } from "@/api/client";
 import { formatNumber, publicityCountdown } from "@/api/format";
+import MaterialList from "@/components/MaterialList.vue";
 import StatusTag from "@/components/StatusTag.vue";
 import { ApplicationStatus } from "@/constants/status";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -42,6 +43,7 @@ function markSpecial(id: string) {
       <div class="card-header"><h3>{{ item.student }}</h3><StatusTag :status="item.status" /></div>
       <div class="meta"><span>{{ item.className }}</span><span>{{ item.submittedAt }}</span><span>{{ item.category }}</span></div>
       <p>{{ item.activity }}</p>
+      <MaterialList :items="item.materials" />
       <div class="score-box"><strong>建议分值：{{ formatNumber(item.score) }} 分</strong></div>
       <div class="button-row">
         <button class="primary" @click="action(item.id, 'review-pass', '材料齐全，建议通过。')">通过</button>
@@ -52,6 +54,7 @@ function markSpecial(id: string) {
     <article v-for="item in publicity" :key="item.id" class="card">
       <div class="card-header"><h3>{{ item.student }}</h3><StatusTag :status="item.status" /></div>
       <p>{{ item.activity }}</p>
+      <MaterialList :items="item.materials" />
       <div class="meta"><span>{{ publicityCountdown(item.publicityUntil) }}</span><span>建议分值 {{ formatNumber(item.score) }} 分</span></div>
       <div class="button-row">
         <button class="secondary" @click="action(item.id, 'publicity-finish', '公示期结束，无有效异议。')">结束公示并送复审</button>

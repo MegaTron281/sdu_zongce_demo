@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"demo1/internal/domain"
@@ -93,18 +95,27 @@ func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCrea
 		if cycle.SummaryPhase {
 			return ErrSummaryPhaseLocked
 		}
-		var duplicate int64
-		if err := tx.Model(&domain.Application{}).
-			Where("student_id = ? AND activity_id = ? AND cycle_id = ? AND status <> ?", user.StudentID, req.ActivityID, cycle.ID, domain.StatusRejected).
-			Count(&duplicate).Error; err != nil {
-			return err
-		}
-		if duplicate > 0 {
-			return ErrDuplicateApply
-		}
 		var activity domain.Activity
-		if err := tx.First(&activity, "id = ?", req.ActivityID).Error; err != nil {
-			return err
+		activityID := strings.TrimSpace(req.ActivityID)
+		if activityID != "" {
+			var duplicate int64
+			if err := tx.Model(&domain.Application{}).
+				Where("student_id = ? AND activity_id = ? AND cycle_id = ? AND status <> ?", user.StudentID, activityID, cycle.ID, domain.StatusRejected).
+				Count(&duplicate).Error; err != nil {
+				return err
+			}
+			if duplicate > 0 {
+				return ErrDuplicateApply
+			}
+			if err := tx.First(&activity, "id = ?", activityID).Error; err != nil {
+				return err
+			}
+		} else {
+			var err error
+			activity, err = s.createActivityFromApplicationLocked(tx, user, req, cycle.ID)
+			if err != nil {
+				return err
+			}
 		}
 		rule, err := s.ActiveRule(tx)
 		if err != nil {
@@ -136,6 +147,48 @@ func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCrea
 		return s.AddLog(tx, user, "提交申请", app.Activity, "进入班委初审")
 	})
 	return app, err
+}
+
+func (s *Service) createActivityFromApplicationLocked(tx *gorm.DB, user domain.User, req domain.ApplicationCreateRequest, cycleID string) (domain.Activity, error) {
+	name := strings.TrimSpace(req.ActivityName)
+	level := strings.TrimSpace(req.Level)
+	category := strings.TrimSpace(req.Category)
+	if name == "" || level == "" || category == "" {
+		return domain.Activity{}, errors.New("activity name, level and category are required")
+	}
+
+	var duplicate int64
+	if err := tx.Model(&domain.Application{}).
+		Where("student_id = ? AND cycle_id = ? AND activity = ? AND status <> ?", user.StudentID, cycleID, name, domain.StatusRejected).
+		Count(&duplicate).Error; err != nil {
+		return domain.Activity{}, err
+	}
+	if duplicate > 0 {
+		return domain.Activity{}, ErrDuplicateApply
+	}
+
+	now := s.now()
+	activity := domain.Activity{
+		ID:        NewID("act"),
+		Name:      name,
+		Organizer: strings.TrimSpace(req.Organizer),
+		Level:     level,
+		Category:  category,
+		Range:     DefaultText(req.Range, "待管理员确认"),
+		Deadline:  strings.TrimSpace(req.Deadline),
+		Source:    strings.TrimSpace(req.Source),
+		Rule:      DefaultText(req.Rule, "学生自填活动，待管理员复核。"),
+		Status:    domain.ActivityStatusPending,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := tx.Create(&activity).Error; err != nil {
+		return domain.Activity{}, err
+	}
+	if err := s.AddLog(tx, user, "填报活动信息", activity.Name, "随申请进入待审核活动"); err != nil {
+		return domain.Activity{}, err
+	}
+	return activity, nil
 }
 
 func (s *Service) ApplicationAction(user domain.User, id, action string, req domain.ApplicationActionRequest) (domain.Application, error) {

@@ -47,6 +47,9 @@ func (s *Service) PreviewScore(req domain.ScorePreviewRequest) (domain.ScorePrev
 	if level == "" {
 		level = req.ActivityLevel
 	}
+	if level == "" {
+		return domain.ScorePreviewResponse{}, errors.New("activity level is required")
+	}
 	rule, err := s.ActiveRule(s.db)
 	if err != nil {
 		return domain.ScorePreviewResponse{}, err

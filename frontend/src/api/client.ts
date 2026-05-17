@@ -3,6 +3,7 @@ import type {
   Application,
   AuditLog,
   AuthUser,
+  MaterialUpload,
   MetaResponse,
   RuleVersion,
   ScorePreview,
@@ -77,7 +78,15 @@ export const api = {
     return request<Application[]>(`/api/applications${suffix}`);
   },
   createApplication(body: {
-    activityId: string;
+    activityId?: string;
+    activityName?: string;
+    organizer?: string;
+    level?: string;
+    category?: string;
+    range?: string;
+    deadline?: string;
+    source?: string;
+    rule?: string;
     awardLevel: string;
     projectType: string;
     rank: number;
@@ -91,13 +100,18 @@ export const api = {
     if (body.score !== undefined && body.score !== null) payload.score = body.score;
     return request<Application>(`/api/applications/${encodeURIComponent(id)}/${action}`, { method: "POST", body: payload });
   },
+  uploadMaterial(file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    return request<MaterialUpload>("/api/materials/upload", { method: "POST", body });
+  },
   publicity() {
     return request<Application[]>("/api/publicity");
   },
   score(studentId: string) {
     return request<StudentScore>(`/api/scores/${encodeURIComponent(studentId)}`);
   },
-  preview(body: { activityId: string; awardLevel: string; projectType: string; rank: number }) {
+  preview(body: { activityId?: string; activityLevel?: string; awardLevel: string; projectType: string; rank: number }) {
     return request<ScorePreview>("/api/scores/preview", { method: "POST", body });
   },
   rules() {

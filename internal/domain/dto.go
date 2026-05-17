@@ -58,11 +58,19 @@ type ActivityPatch struct {
 }
 
 type ApplicationCreateRequest struct {
-	ActivityID  string   `json:"activityId" binding:"required"`
-	AwardLevel  string   `json:"awardLevel" binding:"required"`
-	ProjectType string   `json:"projectType" binding:"required"`
-	Rank        int      `json:"rank"`
-	Materials   []string `json:"materials"`
+	ActivityID   string   `json:"activityId"`
+	ActivityName string   `json:"activityName"`
+	Organizer    string   `json:"organizer"`
+	Level        string   `json:"level"`
+	Category     string   `json:"category"`
+	Range        string   `json:"range"`
+	Deadline     string   `json:"deadline"`
+	Source       string   `json:"source"`
+	Rule         string   `json:"rule"`
+	AwardLevel   string   `json:"awardLevel" binding:"required"`
+	ProjectType  string   `json:"projectType" binding:"required"`
+	Rank         int      `json:"rank"`
+	Materials    []string `json:"materials"`
 }
 
 type ApplicationActionRequest struct {
@@ -71,7 +79,7 @@ type ApplicationActionRequest struct {
 }
 
 type ScorePreviewRequest struct {
-	ActivityID    string `json:"activityId" binding:"required"`
+	ActivityID    string `json:"activityId"`
 	AwardLevel    string `json:"awardLevel" binding:"required"`
 	ProjectType   string `json:"projectType" binding:"required"`
 	Rank          int    `json:"rank"`

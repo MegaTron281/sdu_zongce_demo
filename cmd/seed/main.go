@@ -45,23 +45,24 @@ func seed(db *gorm.DB) error {
 		}
 
 		users := []domain.User{
-			{ID: "user-student", Role: domain.RoleStudent, DisplayName: "李明", StudentID: "20230001", ClassName: "软件 2301", Account: "20230001", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
-			{ID: "user-reviewer", Role: domain.RoleReviewer, DisplayName: "班委 陈欣", StudentID: "20230002", ClassName: "软件 2301", Account: "20230002", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
-			{ID: "user-admin", Role: domain.RoleAdmin, DisplayName: "辅导员 王老师", ClassName: "信息工程学院", Account: "coach-wang", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_student_1", Role: domain.RoleStudent, DisplayName: "晏陆君", StudentID: "202300221077", ClassName: "公信23", Account: "202300221077", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_student_2", Role: domain.RoleStudent, DisplayName: "金瑞开", StudentID: "202300271018", ClassName: "公信23", Account: "202300271018", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_reviewer_1", Role: domain.RoleReviewer, DisplayName: "班委 巩浩", StudentID: "202300202018", ClassName: "公信23", Account: "202300202018", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_admin_1", Role: domain.RoleAdmin, DisplayName: "辅导员张苗", ClassName: "政治学与公共管理学院", Account: "zhangmiao", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
 		}
-		// 用户表只在 ID 不存在时插入，避免重新跑 seed 把用户改过的密码覆盖掉。
+		// 用户表使用 upsert，便于演示账号信息调整后重新同步到数据库。
 		for _, user := range users {
-			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&user).Error; err != nil {
+			if err := upsert(tx, &user); err != nil {
 				return err
 			}
 		}
 
 		activities := []domain.Activity{
-			{ID: "a1", Name: "省级大学生创新创业训练计划", Organizer: "省教育厅", Level: "省级", Category: "创新素养", Range: "6-12 分", Deadline: "2026-04-28", Source: "https://example.edu/notice/innovation", Rule: "按获奖等级计入成果性评价，集体项目按位次递减。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
-			{ID: "a2", Name: "校级劳动实践示范项目", Organizer: "学生工作部", Level: "校级", Category: "劳动素养", Range: "3-8 分", Deadline: "2026-05-12", Source: "https://example.edu/notice/labor", Rule: "需提交实践证明和学院认定材料，模块上限 25 分。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
-			{ID: "a3", Name: "学院文艺展演优秀节目评选", Organizer: "信息工程学院", Level: "院级", Category: "文艺素养", Range: "1-5 分", Deadline: "2026-04-27", Source: "https://example.edu/notice/art", Rule: "个人项目按等级计分，集体项目需填写本人位次。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
-			{ID: "a4", Name: "校运会阳光体育竞赛", Organizer: "体育教学部", Level: "校级", Category: "身心素养", Range: "2-8 分", Deadline: "2026-06-01", Source: "https://example.edu/notice/sports", Rule: "比赛成绩需可在官方成绩册中核验。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
-			{ID: "a5", Name: "学院志愿服务活动补录", Organizer: "信息工程学院", Level: "院级", Category: "劳动素养", Range: "待确认", Deadline: "2026-04-18", Source: "", Rule: "补录活动，材料缺失已驳回。", Status: domain.ActivityStatusReject, CreatedAt: now, UpdatedAt: now},
+			{ID: "a1", Name: "省级大学生创新创业比赛", Organizer: "省教育厅", Level: "省级", Category: "创新素养", Range: "6-12 分", Deadline: "2026-04-28", Source: "https://example.edu/notice/innovation", Rule: "按获奖等级计入成果性评价，集体项目按位次递减。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
+			{ID: "a2", Name: "模拟联合国优秀志愿者", Organizer: "学生工作部", Level: "校级", Category: "劳动素养", Range: "3-8 分", Deadline: "2026-05-12", Source: "https://example.edu/notice/labor", Rule: "需提交实践证明和学院认定材料，模块上限 25 分。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
+			{ID: "a3", Name: "信息学院年终晚会", Organizer: "信息工程学院", Level: "院级", Category: "文艺素养", Range: "1-5 分", Deadline: "2026-04-27", Source: "https://example.edu/notice/art", Rule: "个人项目按等级计分，集体项目需填写本人位次。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
+			{ID: "a4", Name: "排球山大杯", Organizer: "体育学院", Level: "校级", Category: "身心素养", Range: "2-8 分", Deadline: "2026-06-01", Source: "https://example.edu/notice/sports", Rule: "比赛成绩需可在官方成绩册中核验。", Status: domain.ActivityStatusListed, CreatedAt: now, UpdatedAt: now},
+			{ID: "a5", Name: "暑期职等你来", Organizer: "政治学与公共管理学院", Level: "院级", Category: "劳动素养", Range: "待确认", Deadline: "2026-04-18", Source: "", Rule: "补录活动，材料缺失已驳回。", Status: domain.ActivityStatusReject, CreatedAt: now, UpdatedAt: now},
 		}
 		for _, activity := range activities {
 			if err := upsert(tx, &activity); err != nil {

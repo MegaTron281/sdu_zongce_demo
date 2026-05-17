@@ -75,8 +75,17 @@ textarea:disabled {
   display: grid;
   place-items: center;
   border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
   font-weight: 800;
   font-size: 13px;
+}
+
+.brand-logo {
+  width: 86%;
+  height: 86%;
+  display: block;
+  object-fit: contain;
 }
 
 .brand h1,
@@ -352,11 +361,92 @@ textarea:disabled {
   resize: vertical;
 }
 
+.upload-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  border: 1px dashed #d9c9be;
+  border-radius: 8px;
+  background: #fffaf6;
+  padding: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.upload-box input {
+  max-width: 220px;
+}
+
+.upload-box strong,
+.upload-box small {
+  display: block;
+}
+
+.upload-box small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.upload-list,
+.material-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.upload-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 5px 8px 5px 10px;
+  list-style: none;
+}
+
+.material-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.material-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: #eef8f6;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.feedback {
+  margin: 8px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
 .field label {
   display: block;
   margin-bottom: 6px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.field label.upload-box {
+  display: flex;
+  margin-top: 10px;
+  margin-bottom: 0;
+  color: var(--text);
+  font-size: inherit;
 }
 
 .form-grid {
@@ -391,6 +481,17 @@ button,
 
 .danger {
   background: #fff1f1;
+  color: var(--red);
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+}
+
+.danger-text {
   color: var(--red);
 }
 

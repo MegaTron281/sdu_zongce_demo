@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive } from "vue";
 import { api } from "@/api/client";
 import { formatNumber } from "@/api/format";
+import MaterialList from "@/components/MaterialList.vue";
 import StatusTag from "@/components/StatusTag.vue";
 import { ApplicationStatus } from "@/constants/status";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -48,6 +49,7 @@ async function reject(id: string) {
     <article v-for="item in items" :key="item.id" class="card">
       <div class="card-header"><h3>{{ item.student }}</h3><StatusTag :status="item.status" /></div>
       <p>{{ item.activity }}</p>
+      <MaterialList :items="item.materials" />
       <div class="meta">
         <span>班委意见：{{ item.reviewerOpinion || item.specialReason || "暂无" }}</span>
         <span>建议分值 {{ formatNumber(item.score) }} 分</span>

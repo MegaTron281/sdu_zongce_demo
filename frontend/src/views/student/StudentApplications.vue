@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { formatNumber, publicityCountdown } from "@/api/format";
+import MaterialList from "@/components/MaterialList.vue";
 import StatusTag from "@/components/StatusTag.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -14,7 +15,7 @@ onMounted(() => auth.user?.studentId && workspace.loadStudent(auth.user.studentI
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>活动</th><th>提交时间</th><th>状态</th><th>加分</th><th>审核意见</th></tr>
+        <tr><th>活动</th><th>提交时间</th><th>状态</th><th>加分</th><th>材料</th><th>审核意见</th></tr>
       </thead>
       <tbody>
         <tr v-for="item in workspace.applications" :key="item.id">
@@ -26,9 +27,10 @@ onMounted(() => auth.user?.studentId && workspace.loadStudent(auth.user.studentI
             <span v-if="item.publicityUntil" class="meta">{{ publicityCountdown(item.publicityUntil) }}</span>
           </td>
           <td>{{ item.score ? formatNumber(item.score) : "待定" }}</td>
+          <td><MaterialList :items="item.materials" /></td>
           <td>{{ item.reviewerOpinion || "暂无" }}<br />{{ item.adminOpinion }}</td>
         </tr>
-        <tr v-if="workspace.applications.length === 0"><td colspan="5">暂无申请记录</td></tr>
+        <tr v-if="workspace.applications.length === 0"><td colspan="6">暂无申请记录</td></tr>
       </tbody>
     </table>
   </div>

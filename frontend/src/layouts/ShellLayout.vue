@@ -29,9 +29,11 @@ async function logout() {
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">SDU</div>
+        <div class="brand-mark">
+          <img class="brand-logo" src="/sdu_pic.svg" alt="山东大学" />
+        </div>
         <div>
-          <h1>山东大学 · 综测服务大厅</h1>
+          <h1>山东大学 · 政治学与公共管理学院 · 综测服务大厅</h1>
           <p>Comprehensive Assessment Service Hall</p>
         </div>
       </div>

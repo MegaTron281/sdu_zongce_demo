@@ -51,6 +51,13 @@ export interface Application {
   materials: string[];
 }
 
+export interface MaterialUpload {
+  name: string;
+  url: string;
+  size: number;
+  contentType: string;
+}
+
 export interface RuleVersion {
   id: string;
   name: string;
