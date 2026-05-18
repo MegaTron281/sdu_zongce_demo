@@ -91,11 +91,11 @@ func seed(db *gorm.DB) error {
 
 		publicityUntil := now.Add(32 * time.Hour)
 		applications := []domain.Application{
-			{ID: "s1", Student: "李明", StudentID: "20230001", ClassName: "软件 2301", ActivityID: "a1", Activity: "省级大学生创新创业训练计划", Category: "创新素养", AwardLevel: "一等奖", ProjectType: "个人项目", Rank: 1, Score: 12, Status: domain.StatusPublicity, SubmittedAt: "2026-04-22", PublicityUntil: &publicityUntil, ReviewerOpinion: "材料齐全，建议通过。", Materials: []string{"证书图片", "官网公示链接"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
-			{ID: "s2", Student: "陈欣", StudentID: "20230002", ClassName: "软件 2301", ActivityID: "a2", Activity: "校级劳动实践示范项目", Category: "劳动素养", AwardLevel: "二等奖", ProjectType: "个人项目", Rank: 1, Score: 6, Status: domain.StatusPendingReviewer, SubmittedAt: "2026-04-24", Materials: []string{"实践证明"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
-			{ID: "s3", Student: "王悦", StudentID: "20230003", ClassName: "软件 2301", ActivityID: "a3", Activity: "学院文艺展演优秀节目评选", Category: "文艺素养", AwardLevel: "一等奖", ProjectType: "集体项目", Rank: 2, Score: 4, Status: domain.StatusPendingAdmin, SubmittedAt: "2026-04-20", ReviewerOpinion: "已核验官网公示。", Materials: []string{"节目单", "公示截图"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
-			{ID: "s4", Student: "赵然", StudentID: "20230004", ClassName: "软件 2302", ActivityID: "a4", Activity: "校运会阳光体育竞赛", Category: "身心素养", AwardLevel: "二等奖", ProjectType: "个人项目", Rank: 1, Score: 6, Status: domain.StatusApproved, SubmittedAt: "2026-04-10", ReviewerOpinion: "通过。", AdminOpinion: "计分入账。", Materials: []string{"成绩册"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
-			{ID: "s5", Student: "李明", StudentID: "20230001", ClassName: "软件 2301", ActivityID: "a5", Activity: "学院志愿服务活动补录", Category: "劳动素养", Score: 0, Status: domain.StatusRejected, SubmittedAt: "2026-04-18", ReviewerOpinion: "缺少主办方盖章证明。", Materials: []string{"说明材料"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
+			{ID: "s1", Student: "李明", StudentID: "20230001", ClassName: "公信2301", ActivityID: "a1", Activity: "省级大学生创新创业训练计划", Category: "创新素养", AwardLevel: "一等奖", ProjectType: "个人项目", Rank: 1, Score: 12, Status: domain.StatusPublicity, SubmittedAt: "2026-04-22", PublicityUntil: &publicityUntil, ReviewerOpinion: "材料齐全，建议通过。", Materials: []string{"证书图片", "官网公示链接"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
+			{ID: "s2", Student: "陈欣", StudentID: "20230002", ClassName: "行管2302", ActivityID: "a2", Activity: "校级劳动实践示范项目", Category: "劳动素养", AwardLevel: "二等奖", ProjectType: "个人项目", Rank: 1, Score: 6, Status: domain.StatusPendingReviewer, SubmittedAt: "2026-04-24", Materials: []string{"实践证明"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
+			{ID: "s3", Student: "王悦", StudentID: "20230003", ClassName: "政治2301", ActivityID: "a3", Activity: "学院文艺展演优秀节目评选", Category: "文艺素养", AwardLevel: "一等奖", ProjectType: "集体项目", Rank: 2, Score: 4, Status: domain.StatusPendingAdmin, SubmittedAt: "2026-04-20", ReviewerOpinion: "已核验官网公示。", Materials: []string{"节目单", "公示截图"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
+			{ID: "s4", Student: "赵然", StudentID: "20230004", ClassName: "科社2301", ActivityID: "a4", Activity: "校运会阳光体育竞赛", Category: "身心素养", AwardLevel: "二等奖", ProjectType: "个人项目", Rank: 1, Score: 6, Status: domain.StatusApproved, SubmittedAt: "2026-04-10", ReviewerOpinion: "通过。", AdminOpinion: "计分入账。", Materials: []string{"成绩册"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
+			{ID: "s5", Student: "李明", StudentID: "20230001", ClassName: "公信2301", ActivityID: "a5", Activity: "学院志愿服务活动补录", Category: "劳动素养", Score: 0, Status: domain.StatusRejected, SubmittedAt: "2026-04-18", ReviewerOpinion: "缺少主办方盖章证明。", Materials: []string{"说明材料"}, CycleID: "2026", CreatedAt: now, UpdatedAt: now},
 		}
 		for _, app := range applications {
 			if err := upsert(tx, &app); err != nil {
@@ -104,10 +104,10 @@ func seed(db *gorm.DB) error {
 		}
 
 		academics := []domain.AcademicScore{
-			{StudentID: "20230001", Student: "李明", ClassName: "软件 2301", Score: 86.4, CreatedAt: now, UpdatedAt: now},
-			{StudentID: "20230002", Student: "陈欣", ClassName: "软件 2301", Score: 88.2, CreatedAt: now, UpdatedAt: now},
-			{StudentID: "20230003", Student: "王悦", ClassName: "软件 2301", Score: 90.1, CreatedAt: now, UpdatedAt: now},
-			{StudentID: "20230004", Student: "赵然", ClassName: "软件 2302", Score: 84.8, CreatedAt: now, UpdatedAt: now},
+			{StudentID: "20230001", Student: "李明", ClassName: "公信2301", Score: 86.4, CreatedAt: now, UpdatedAt: now},
+			{StudentID: "20230002", Student: "陈欣", ClassName: "行管2302", Score: 88.2, CreatedAt: now, UpdatedAt: now},
+			{StudentID: "20230003", Student: "王悦", ClassName: "政治2301", Score: 90.1, CreatedAt: now, UpdatedAt: now},
+			{StudentID: "20230004", Student: "赵然", ClassName: "科社2301", Score: 84.8, CreatedAt: now, UpdatedAt: now},
 		}
 		for _, academic := range academics {
 			if err := upsert(tx, &academic); err != nil {

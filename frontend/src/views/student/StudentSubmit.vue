@@ -12,7 +12,9 @@ const route = useRoute();
 const router = useRouter();
 const uploadedMaterials = ref<string[]>([]);
 const uploading = ref(false);
+const submitting = ref(false);
 const uploadError = ref("");
+const submitError = ref("");
 
 const draft = reactive({
   activityName: "",
@@ -46,7 +48,7 @@ onMounted(async () => {
 });
 
 const locked = computed(() => Boolean(auth.meta?.summaryPhase));
-const canSubmit = computed(() => Boolean(draft.activityName.trim() && draft.level && draft.category && !locked.value));
+const canSubmit = computed(() => Boolean(draft.activityName.trim() && draft.level && draft.category && !locked.value && !uploading.value && !submitting.value));
 
 function materialList(value: string) {
   return value
@@ -77,7 +79,8 @@ async function uploadMaterialFiles(event: Event) {
       uploadedMaterials.value.push(`${material.name}|${material.url}`);
     }
   } catch (error) {
-    uploadError.value = error instanceof Error ? error.message : "材料上传失败";
+    const message = error instanceof Error ? error.message : "材料上传失败";
+    uploadError.value = message === "not found" ? "材料上传接口未生效，请重启 Gin 后端后再上传。" : message;
   } finally {
     uploading.value = false;
     input.value = "";
@@ -89,22 +92,31 @@ function removeUploadedMaterial(index: number) {
 }
 
 async function submitApplication() {
-  await api.createApplication({
-    activityName: draft.activityName,
-    organizer: draft.organizer,
-    level: draft.level,
-    category: draft.category,
-    range: draft.range,
-    deadline: draft.deadline,
-    source: draft.source,
-    rule: draft.rule,
-    awardLevel: draft.awardLevel,
-    projectType: draft.projectType,
-    rank: Number(draft.rank || 1),
-    materials: combinedMaterials(),
-  });
-  workspace.setToast("申请已提交，等待班委审核");
-  router.push({ name: "student.applications" });
+  submitError.value = "";
+  submitting.value = true;
+  try {
+    await api.createApplication({
+      activityName: draft.activityName,
+      organizer: draft.organizer,
+      level: draft.level,
+      category: draft.category,
+      range: draft.range,
+      deadline: draft.deadline,
+      source: draft.source,
+      rule: draft.rule,
+      awardLevel: draft.awardLevel,
+      projectType: draft.projectType,
+      rank: Number(draft.rank || 1),
+      materials: combinedMaterials(),
+    });
+    workspace.setToast("申请已提交，等待班委审核");
+    router.push({ name: "student.applications" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "提交申请失败";
+    submitError.value = message === "not found" ? "提交接口未生效，请重启 Gin 后端后再试。" : message;
+  } finally {
+    submitting.value = false;
+  }
 }
 </script>
 
@@ -195,7 +207,8 @@ async function submitApplication() {
             </li>
           </ul>
         </div>
-        <button class="primary" type="submit" :disabled="!canSubmit">提交申请</button>
+        <p v-if="submitError" class="feedback error full">{{ submitError }}</p>
+        <button class="primary" type="submit" :disabled="!canSubmit">{{ submitting ? "提交中..." : "提交申请" }}</button>
       </form>
     </div>
     <div>

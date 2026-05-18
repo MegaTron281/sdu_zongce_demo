@@ -456,6 +456,7 @@ textarea:disabled {
 }
 
 .field.full,
+.form-grid .full,
 .form-grid .primary {
   grid-column: 1 / -1;
 }
