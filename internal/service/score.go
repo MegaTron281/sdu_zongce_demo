@@ -50,14 +50,25 @@ func (s *Service) PreviewScore(req domain.ScorePreviewRequest) (domain.ScorePrev
 	if level == "" {
 		return domain.ScorePreviewResponse{}, errors.New("activity level is required")
 	}
+	if req.Rank < 1 {
+		req.Rank = 1
+	}
 	rule, err := s.ActiveRule(s.db)
 	if err != nil {
 		return domain.ScorePreviewResponse{}, err
 	}
+	ruleKey := level + ":" + req.AwardLevel
 	return domain.ScorePreviewResponse{
-		Score:    CalculateScore(rule, level, req.AwardLevel, req.ProjectType, req.Rank),
-		RuleID:   rule.ID,
-		RuleName: rule.Name,
+		Score:         CalculateScore(rule, level, req.AwardLevel, req.ProjectType, req.Rank),
+		BaseScore:     rule.Matrix[ruleKey],
+		RuleID:        rule.ID,
+		RuleName:      rule.Name,
+		RuleKey:       ruleKey,
+		ActivityLevel: level,
+		AwardLevel:    req.AwardLevel,
+		ProjectType:   req.ProjectType,
+		Rank:          req.Rank,
+		RankAdjusted:  req.ProjectType == "集体项目" && req.Rank > 1,
 	}, nil
 }
 

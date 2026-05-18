@@ -54,7 +54,7 @@ async function submit() {
       <div class="login-copy">
         <p class="eyebrow">统一身份入口</p>
         <h2>按角色进入申报、审核和管理工作台</h2>
-        <p>演示账号使用统一密码 123456。登录后由服务端 session 判断身份，审核日志不再信任前端传入的操作者。</p>
+        <p>演示账号使用统一密码123456。登录后由服务端session判断身份</p>
       </div>
     </section>
 
