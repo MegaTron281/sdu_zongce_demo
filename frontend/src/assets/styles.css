@@ -577,6 +577,28 @@ th {
   font-weight: 850;
 }
 
+.score-rule-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.score-rule-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.score-rule-list span {
+  color: var(--muted);
+}
+
+.score-rule-list strong {
+  text-align: right;
+}
+
 .progress-head {
   display: flex;
   justify-content: space-between;

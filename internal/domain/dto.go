@@ -87,7 +87,14 @@ type ScorePreviewRequest struct {
 }
 
 type ScorePreviewResponse struct {
-	Score    float64 `json:"score"`
-	RuleID   string  `json:"ruleId"`
-	RuleName string  `json:"ruleName"`
+	Score         float64 `json:"score"`
+	BaseScore     float64 `json:"baseScore"`
+	RuleID        string  `json:"ruleId"`
+	RuleName      string  `json:"ruleName"`
+	RuleKey       string  `json:"ruleKey"`
+	ActivityLevel string  `json:"activityLevel"`
+	AwardLevel    string  `json:"awardLevel"`
+	ProjectType   string  `json:"projectType"`
+	Rank          int     `json:"rank"`
+	RankAdjusted  bool    `json:"rankAdjusted"`
 }

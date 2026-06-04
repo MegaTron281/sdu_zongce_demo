@@ -181,7 +181,7 @@ async function submitApplication() {
         </div>
         <div class="field">
           <label>集体项目本人位次</label>
-          <input v-model.number="draft.rank" class="input" min="1" type="number" :disabled="locked" />
+          <input v-model.number="draft.rank" class="input" min="1" type="number" :disabled="locked || draft.projectType !== '集体项目'" />
         </div>
         <div class="field full">
           <label>证明材料</label>

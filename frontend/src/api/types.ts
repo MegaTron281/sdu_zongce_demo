@@ -96,6 +96,13 @@ export interface StudentScore {
 
 export interface ScorePreview {
   score: number;
+  baseScore: number;
   ruleId: string;
   ruleName: string;
+  ruleKey: string;
+  activityLevel: string;
+  awardLevel: string;
+  projectType: string;
+  rank: number;
+  rankAdjusted: boolean;
 }
