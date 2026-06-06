@@ -12,6 +12,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func pagination(c *gin.Context) (limit int, offset int) {
+	limit, _ = strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ = strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit < 1 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return
+}
+
 func (s *Server) login(c *gin.Context) {
 	var req domain.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -115,7 +127,8 @@ func (s *Server) patchActivity(c *gin.Context) {
 }
 
 func (s *Server) listApplications(c *gin.Context) {
-	items, err := s.svc.ListApplications(currentUser(c), c.Query("status"), c.Query("studentId"), c.Query("className"))
+	limit, offset := pagination(c)
+	items, err := s.svc.ListApplications(currentUser(c), c.Query("status"), c.Query("studentId"), c.Query("className"), limit, offset)
 	if err != nil {
 		writeError(c, err)
 		return
@@ -173,43 +186,6 @@ func (s *Server) score(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, score)
-}
-
-func (s *Server) previewScore(c *gin.Context) {
-	var req domain.ScorePreviewRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		writeError(c, err)
-		return
-	}
-	resp, err := s.svc.PreviewScore(req)
-	if err != nil {
-		writeError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
-func (s *Server) listRules(c *gin.Context) {
-	rules, err := s.svc.ListRules()
-	if err != nil {
-		writeError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, rules)
-}
-
-func (s *Server) createRule(c *gin.Context) {
-	var rule domain.RuleVersion
-	if err := c.ShouldBindJSON(&rule); err != nil {
-		writeError(c, err)
-		return
-	}
-	created, err := s.svc.CreateRule(currentUser(c), rule)
-	if err != nil {
-		writeError(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, created)
 }
 
 func (s *Server) logs(c *gin.Context) {
@@ -270,4 +246,65 @@ func (s *Server) exportScores(c *gin.Context) {
 
 func formatFloat(value float64) string {
 	return strconv.FormatFloat(value, 'f', 1, 64)
+}
+
+func (s *Server) changePassword(c *gin.Context) {
+	var req domain.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, err)
+		return
+	}
+	if err := s.svc.ChangePassword(currentUser(c), req.OldPassword, req.NewPassword); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (s *Server) listUsers(c *gin.Context) {
+	limit, offset := pagination(c)
+	items, err := s.svc.ListUsers(limit, offset)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) importUsers(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	f, err := file.Open()
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	defer f.Close()
+	result := s.svc.ImportUsersCSV(currentUser(c), f)
+	c.JSON(http.StatusOK, result)
+}
+
+func (s *Server) updateUserRole(c *gin.Context) {
+	var req domain.UpdateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, err)
+		return
+	}
+	if err := s.svc.UpdateUserRole(currentUser(c), c.Param("id"), req.Role); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (s *Server) listObjections(c *gin.Context) {
+	list, err := s.svc.ListObjections(c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, list)
 }

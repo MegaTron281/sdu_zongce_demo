@@ -5,9 +5,10 @@ import type {
   AuthUser,
   MaterialUpload,
   MetaResponse,
-  RuleVersion,
-  ScorePreview,
   StudentScore,
+  Objection,
+  UserListItem,
+  UserImportResult,
 } from "./types";
 
 export class ApiError extends Error {
@@ -90,6 +91,7 @@ export const api = {
     awardLevel: string;
     projectType: string;
     rank: number;
+    score: number;
     materials: string[];
   }) {
     return request<Application>("/api/applications", { method: "POST", body });
@@ -111,16 +113,30 @@ export const api = {
   score(studentId: string) {
     return request<StudentScore>(`/api/scores/${encodeURIComponent(studentId)}`);
   },
-  preview(body: { activityId?: string; activityLevel?: string; awardLevel: string; projectType: string; rank: number }) {
-    return request<ScorePreview>("/api/scores/preview", { method: "POST", body });
-  },
-  rules() {
-    return request<RuleVersion[]>("/api/admin/rules");
-  },
-  createRule(body: { name: string; matrix: Record<string, number>; moduleMax: Record<string, number> }) {
-    return request<RuleVersion>("/api/admin/rules", { method: "POST", body });
+  objections(applicationId: string) {
+    return request<Objection[]>(`/api/applications/${encodeURIComponent(applicationId)}/objections`);
   },
   logs() {
     return request<AuditLog[]>("/api/admin/logs");
+  },
+  changePassword(oldPassword: string, newPassword: string) {
+    return request<{ status: string }>("/api/auth/change-password", {
+      method: "POST",
+      body: { oldPassword, newPassword },
+    });
+  },
+  listUsers(limit = 200, offset = 0) {
+    return request<UserListItem[]>(`/api/admin/users?limit=${limit}&offset=${offset}`);
+  },
+  importUsers(file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    return request<UserImportResult>("/api/admin/users/import", { method: "POST", body });
+  },
+  updateUserRole(id: string, role: string) {
+    return request<{ status: string }>(`/api/admin/users/${encodeURIComponent(id)}/role`, {
+      method: "PATCH",
+      body: { role },
+    });
   },
 };

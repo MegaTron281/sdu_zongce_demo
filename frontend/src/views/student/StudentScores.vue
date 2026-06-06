@@ -21,16 +21,11 @@ const included = computed(() => workspace.applications.filter((item) => item.sta
       <div class="stat"><span>页面状态</span><strong>{{ workspace.score.locked ? "锁定" : "开放" }}</strong></div>
     </div>
     <div class="panel">
-      <p class="section-label">四模块进度</p>
-      <div class="progress-list">
-        <div v-for="module in workspace.score.modules" :key="module.name" class="progress-row">
-          <div class="progress-head">
-            <span>{{ module.name }}</span>
-            <span>{{ formatNumber(module.score) }}/{{ formatNumber(module.max) }} · 距上限 {{ formatNumber(module.max - module.score) }} 分</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" :style="{ width: `${Math.min(100, (module.score / module.max) * 100)}%` }"></div>
-          </div>
+      <p class="section-label">四模块得分</p>
+      <div class="stats" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+        <div v-for="module in workspace.score.modules" :key="module.name" class="stat">
+          <span>{{ module.name }}</span>
+          <strong>{{ formatNumber(module.score) }}</strong>
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ import PublicityWall from "@/views/student/PublicityWall.vue";
 import ReviewDesk from "@/views/reviewer/ReviewDesk.vue";
 import ClassHistory from "@/views/reviewer/ClassHistory.vue";
 import ActivityAdmin from "@/views/admin/ActivityAdmin.vue";
-import RuleAdmin from "@/views/admin/RuleAdmin.vue";
+import AppealDesk from "@/views/admin/AppealDesk.vue";
 import RecheckDesk from "@/views/admin/RecheckDesk.vue";
 import DataAdmin from "@/views/admin/DataAdmin.vue";
 import AccountsAdmin from "@/views/admin/AccountsAdmin.vue";
@@ -29,8 +29,8 @@ export const rolePages = {
   ],
   admin: [
     { name: "admin.activities", label: "活动名录管理" },
-    { name: "admin.rules", label: "加分规则配置" },
     { name: "admin.recheck", label: "复审工作台" },
+    { name: "admin.appeals", label: "申诉工作台" },
     { name: "admin.data", label: "成绩总览与数据管理" },
     { name: "admin.accounts", label: "账号与班级管理" },
   ],
@@ -52,8 +52,8 @@ const routes: RouteRecordRaw[] = [
       { path: "reviewer/desk", name: "reviewer.desk", component: ReviewDesk, meta: { roles: ["reviewer"] } },
       { path: "reviewer/history", name: "reviewer.history", component: ClassHistory, meta: { roles: ["reviewer"] } },
       { path: "admin/activities", name: "admin.activities", component: ActivityAdmin, meta: { roles: ["admin"] } },
-      { path: "admin/rules", name: "admin.rules", component: RuleAdmin, meta: { roles: ["admin"] } },
       { path: "admin/recheck", name: "admin.recheck", component: RecheckDesk, meta: { roles: ["admin"] } },
+      { path: "admin/appeals", name: "admin.appeals", component: AppealDesk, meta: { roles: ["admin"] } },
       { path: "admin/data", name: "admin.data", component: DataAdmin, meta: { roles: ["admin"] } },
       { path: "admin/accounts", name: "admin.accounts", component: AccountsAdmin, meta: { roles: ["admin"] } },
     ],

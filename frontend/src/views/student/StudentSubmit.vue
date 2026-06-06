@@ -2,7 +2,6 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "@/api/client";
-import ScorePreview from "@/components/ScorePreview.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -28,6 +27,7 @@ const draft = reactive({
   awardLevel: "一等奖",
   projectType: "个人项目",
   rank: 1,
+  score: 0,
   materials: "证书图片、公示截图、官方报道链接",
 });
 
@@ -107,6 +107,7 @@ async function submitApplication() {
       awardLevel: draft.awardLevel,
       projectType: draft.projectType,
       rank: Number(draft.rank || 1),
+      score: Number(draft.score || 0),
       materials: combinedMaterials(),
     });
     workspace.setToast("申请已提交，等待班委审核");
@@ -183,6 +184,10 @@ async function submitApplication() {
           <label>集体项目本人位次</label>
           <input v-model.number="draft.rank" class="input" min="1" type="number" :disabled="locked || draft.projectType !== '集体项目'" />
         </div>
+        <div class="field">
+          <label>申报加分</label>
+          <input v-model.number="draft.score" class="input" type="number" min="0" step="0.5" placeholder="自行填写申报分数" :disabled="locked" required />
+        </div>
         <div class="field full">
           <label>证明材料</label>
           <input v-model="draft.materials" class="input" placeholder="可填写证书说明、公示链接；多项用逗号或换行分隔" :disabled="locked" />
@@ -212,16 +217,9 @@ async function submitApplication() {
       </form>
     </div>
     <div>
-      <p class="section-label">实时计分预览</p>
-      <ScorePreview
-        :activity-level="draft.level"
-        :award-level="draft.awardLevel"
-        :project-type="draft.projectType"
-        :rank="draft.rank"
-      />
       <div class="panel">
         <p class="section-label">申报说明</p>
-        <p>学生无需先从活动名录中选择活动。提交后系统会把你填写的活动信息连同证明材料一起送班委初审；如果活动不在名录中，会同步进入管理员活动名录待审核队列。</p>
+        <p>学生自行填写申报分数，提交后由班委初审。班委和老师审核时可直接通过、修改分数后通过、或驳回。</p>
       </div>
     </div>
   </div>

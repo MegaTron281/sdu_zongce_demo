@@ -13,7 +13,6 @@ export interface MetaResponse {
   applicationStatuses: string[];
   activityStatuses: string[];
   modules: string[];
-  activeRule: { id: string; name: string };
 }
 
 export interface Activity {
@@ -42,6 +41,7 @@ export interface Application {
   projectType: string;
   rank: number;
   score: number;
+  claimedScore: number;
   status: string;
   submittedAt: string;
   publicityUntil?: string;
@@ -58,13 +58,13 @@ export interface MaterialUpload {
   contentType: string;
 }
 
-export interface RuleVersion {
+export interface Objection {
   id: string;
-  name: string;
-  active: boolean;
-  publishedAt: string;
-  matrix: Record<string, number>;
-  moduleMax: Record<string, number>;
+  applicationId: string;
+  student: string;
+  studentId: string;
+  reason: string;
+  createdAt: string;
 }
 
 export interface AuditLog {
@@ -94,15 +94,19 @@ export interface StudentScore {
   locked: boolean;
 }
 
-export interface ScorePreview {
-  score: number;
-  baseScore: number;
-  ruleId: string;
-  ruleName: string;
-  ruleKey: string;
-  activityLevel: string;
-  awardLevel: string;
-  projectType: string;
-  rank: number;
-  rankAdjusted: boolean;
+export interface UserListItem {
+  id: string;
+  role: Role;
+  displayName: string;
+  studentId?: string;
+  className?: string;
+  account: string;
+  createdAt: string;
 }
+
+export interface UserImportResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+

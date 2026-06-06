@@ -70,7 +70,8 @@ func writeError(c *gin.Context, err error) {
 		errors.Is(err, service.ErrSummaryPhaseLocked),
 		errors.Is(err, service.ErrInvalidTransition):
 		status = http.StatusConflict
-	case errors.Is(err, service.ErrReasonRequired):
+	case errors.Is(err, service.ErrReasonRequired),
+		errors.Is(err, service.ErrWrongPassword):
 		status = http.StatusBadRequest
 	}
 	c.JSON(status, gin.H{"error": err.Error()})

@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type AuthUser struct {
 	ID          string `json:"id"`
 	Role        string `json:"role"`
@@ -29,16 +31,10 @@ type LoginResponse struct {
 }
 
 type MetaResponse struct {
-	SummaryPhase        bool        `json:"summaryPhase"`
-	ApplicationStatuses []string    `json:"applicationStatuses"`
-	ActivityStatuses    []string    `json:"activityStatuses"`
-	Modules             []string    `json:"modules"`
-	ActiveRule          RuleSummary `json:"activeRule"`
-}
-
-type RuleSummary struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	SummaryPhase        bool     `json:"summaryPhase"`
+	ApplicationStatuses []string `json:"applicationStatuses"`
+	ActivityStatuses    []string `json:"activityStatuses"`
+	Modules             []string `json:"modules"`
 }
 
 type SummaryPhaseRequest struct {
@@ -70,6 +66,7 @@ type ApplicationCreateRequest struct {
 	AwardLevel   string   `json:"awardLevel" binding:"required"`
 	ProjectType  string   `json:"projectType" binding:"required"`
 	Rank         int      `json:"rank"`
+	Score        float64  `json:"score" binding:"required"`
 	Materials    []string `json:"materials"`
 }
 
@@ -78,23 +75,31 @@ type ApplicationActionRequest struct {
 	Score  *float64 `json:"score"`
 }
 
-type ScorePreviewRequest struct {
-	ActivityID    string `json:"activityId"`
-	AwardLevel    string `json:"awardLevel" binding:"required"`
-	ProjectType   string `json:"projectType" binding:"required"`
-	Rank          int    `json:"rank"`
-	ActivityLevel string `json:"activityLevel"`
+type ObjectionRequest struct {
+	Reason string `json:"reason" binding:"required"`
 }
 
-type ScorePreviewResponse struct {
-	Score         float64 `json:"score"`
-	BaseScore     float64 `json:"baseScore"`
-	RuleID        string  `json:"ruleId"`
-	RuleName      string  `json:"ruleName"`
-	RuleKey       string  `json:"ruleKey"`
-	ActivityLevel string  `json:"activityLevel"`
-	AwardLevel    string  `json:"awardLevel"`
-	ProjectType   string  `json:"projectType"`
-	Rank          int     `json:"rank"`
-	RankAdjusted  bool    `json:"rankAdjusted"`
+type ChangePasswordRequest struct {
+	OldPassword string `json:"oldPassword" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required"`
+}
+
+type UserListItem struct {
+	ID          string `json:"id"`
+	Role        string `json:"role"`
+	DisplayName string `json:"displayName"`
+	StudentID   string `json:"studentId,omitempty"`
+	ClassName   string `json:"className,omitempty"`
+	Account     string `json:"account"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+type UserImportResult struct {
+	Created int      `json:"created"`
+	Skipped int      `json:"skipped"`
+	Errors  []string `json:"errors"`
+}
+
+type UpdateRoleRequest struct {
+	Role string `json:"role" binding:"required"`
 }

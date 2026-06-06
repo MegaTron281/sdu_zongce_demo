@@ -45,10 +45,16 @@ func seed(db *gorm.DB) error {
 		}
 
 		users := []domain.User{
+			// 真实测试账号
 			{ID: "user_student_1", Role: domain.RoleStudent, DisplayName: "晏陆君", StudentID: "202300221077", ClassName: "公信23", Account: "202300221077", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
 			{ID: "user_student_2", Role: domain.RoleStudent, DisplayName: "金瑞开", StudentID: "202300271018", ClassName: "公信23", Account: "202300271018", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
 			{ID: "user_reviewer_1", Role: domain.RoleReviewer, DisplayName: "班委 巩浩", StudentID: "202300202018", ClassName: "公信23", Account: "202300202018", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
 			{ID: "user_admin_1", Role: domain.RoleAdmin, DisplayName: "辅导员张苗", ClassName: "政治学与公共管理学院", Account: "zhangmiao", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			// Demo 账号（用于展示完整流程数据）
+			{ID: "user_demo_1", Role: domain.RoleStudent, DisplayName: "李明", StudentID: "20230001", ClassName: "公信2301", Account: "20230001", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_demo_2", Role: domain.RoleReviewer, DisplayName: "陈欣", StudentID: "20230002", ClassName: "行管2302", Account: "20230002", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_demo_3", Role: domain.RoleStudent, DisplayName: "王悦", StudentID: "20230003", ClassName: "政治2301", Account: "20230003", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
+			{ID: "user_demo_4", Role: domain.RoleStudent, DisplayName: "赵然", StudentID: "20230004", ClassName: "科社2301", Account: "20230004", PasswordHash: hash, CreatedAt: now, UpdatedAt: now},
 		}
 		// 用户表使用 upsert，便于演示账号信息调整后重新同步到数据库。
 		for _, user := range users {
@@ -68,25 +74,6 @@ func seed(db *gorm.DB) error {
 			if err := upsert(tx, &activity); err != nil {
 				return err
 			}
-		}
-
-		rule := domain.RuleVersion{
-			ID:          "2026-v1",
-			Name:        "2026 V1",
-			Active:      true,
-			PublishedAt: "2026-04-01",
-			Matrix: map[string]float64{
-				"国家级:一等奖": 16, "国家级:二等奖": 12, "国家级:三等奖": 8, "国家级:其他名次": 5,
-				"省级:一等奖": 12, "省级:二等奖": 10, "省级:三等奖": 7, "省级:其他名次": 4,
-				"校级:一等奖": 8, "校级:二等奖": 6, "校级:三等奖": 4, "校级:其他名次": 2,
-				"院级:一等奖": 5, "院级:二等奖": 4, "院级:三等奖": 3, "院级:其他名次": 1,
-			},
-			ModuleMax: map[string]float64{"身心素养": 25, "文艺素养": 25, "劳动素养": 25, "创新素养": 25},
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-		if err := upsert(tx, &rule); err != nil {
-			return err
 		}
 
 		publicityUntil := now.Add(32 * time.Hour)

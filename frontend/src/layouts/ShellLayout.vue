@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { rolePages } from "@/router";
 import { roleLabels, useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
 import type { Role } from "@/api/types";
+import ChangePassword from "@/components/ChangePassword.vue";
 
 const auth = useAuthStore();
 const workspace = useWorkspaceStore();
@@ -14,6 +15,7 @@ const router = useRouter();
 const pages = computed(() => (auth.user ? rolePages[auth.user.role] : []));
 const pageTitle = computed(() => pages.value.find((item) => item.name === route.name)?.label || "综测服务大厅");
 const role = computed<Role>(() => auth.user?.role || "student");
+const showChangePassword = ref(false);
 
 onMounted(async () => {
   if (!auth.meta) await auth.refreshMeta();
@@ -37,17 +39,7 @@ async function logout() {
           <p>Comprehensive Assessment Service Hall</p>
         </div>
       </div>
-      <div class="role-switch">
-        <button
-          v-for="candidate in (['student', 'reviewer', 'admin'] as Role[])"
-          :key="candidate"
-          class="role-button"
-          :class="{ active: role === candidate }"
-          disabled
-        >
-          {{ roleLabels[candidate] }}
-        </button>
-      </div>
+      <div class="role-badge" :class="role">{{ roleLabels[role] }}</div>
       <nav class="nav-list">
         <RouterLink v-for="page in pages" :key="page.name" class="nav-item" :to="{ name: page.name }">
           {{ page.label }}
@@ -63,6 +55,7 @@ async function logout() {
         </div>
         <div class="topbar-actions">
           <span class="user-badge">{{ auth.user?.displayName }} · {{ auth.user ? roleLabels[auth.user.role] : "" }}</span>
+          <button class="secondary" @click="showChangePassword = true">修改密码</button>
           <button class="secondary logout-button" @click="logout">退出</button>
         </div>
       </header>
@@ -72,5 +65,6 @@ async function logout() {
         <RouterView />
       </section>
     </main>
+    <ChangePassword v-if="showChangePassword" @close="showChangePassword = false" />
   </div>
 </template>

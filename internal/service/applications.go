@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ func (s *Service) AdvanceExpiredPublicity() error {
 	})
 }
 
-func (s *Service) ListApplications(user domain.User, status, studentID, className string) ([]domain.Application, error) {
+func (s *Service) ListApplications(user domain.User, status, studentID, className string, limit, offset int) ([]domain.Application, error) {
 	query := s.db.Model(&domain.Application{}).Order("created_at DESC")
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -63,6 +64,9 @@ func (s *Service) ListApplications(user domain.User, status, studentID, classNam
 	case domain.RoleAdmin:
 	default:
 		return nil, ErrForbidden
+	}
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
 	}
 	var apps []domain.Application
 	err := query.Find(&apps).Error
@@ -117,29 +121,26 @@ func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCrea
 				return err
 			}
 		}
-		rule, err := s.ActiveRule(tx)
-		if err != nil {
-			return err
-		}
 		now := s.now()
 		app = domain.Application{
-			ID:          NewID("app"),
-			Student:     user.DisplayName,
-			StudentID:   user.StudentID,
-			ClassName:   user.ClassName,
-			ActivityID:  activity.ID,
-			Activity:    activity.Name,
-			Category:    activity.Category,
-			AwardLevel:  req.AwardLevel,
-			ProjectType: req.ProjectType,
-			Rank:        req.Rank,
-			Score:       CalculateScore(rule, activity.Level, req.AwardLevel, req.ProjectType, req.Rank),
-			Status:      domain.StatusPendingReviewer,
-			SubmittedAt: now.Format("2006-01-02"),
-			Materials:   req.Materials,
-			CycleID:     cycle.ID,
-			CreatedAt:   now,
-			UpdatedAt:   now,
+			ID:           NewID("app"),
+			Student:      user.DisplayName,
+			StudentID:    user.StudentID,
+			ClassName:    user.ClassName,
+			ActivityID:   activity.ID,
+			Activity:     activity.Name,
+			Category:     activity.Category,
+			AwardLevel:   req.AwardLevel,
+			ProjectType:  req.ProjectType,
+			Rank:         req.Rank,
+			Score:        req.Score,
+			ClaimedScore: req.Score,
+			Status:       domain.StatusPendingReviewer,
+			SubmittedAt:  now.Format("2006-01-02"),
+			Materials:    req.Materials,
+			CycleID:      cycle.ID,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
 		if err := tx.Create(&app).Error; err != nil {
 			return err
@@ -206,8 +207,17 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if app.Status != domain.StatusPendingReviewer {
 				return ErrInvalidTransition
 			}
+			if req.Score != nil {
+				reason, err := RequireReason(req.Reason, "修改分数需要填写原因")
+				if err != nil {
+					return err
+				}
+				app.Score = *req.Score
+				app.ReviewerOpinion = reason
+			} else {
+				app.ReviewerOpinion = DefaultText(req.Reason, "班委初审通过")
+			}
 			app.Status = domain.StatusPublicity
-			app.ReviewerOpinion = DefaultText(req.Reason, "班委初审通过")
 			publicityUntil := now.Add(48 * time.Hour)
 			app.PublicityUntil = &publicityUntil
 			if err := s.AddLog(tx, user, "班委初审通过", app.Activity, app.ReviewerOpinion); err != nil {
@@ -239,9 +249,25 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if err := s.AddLog(tx, user, "标记特殊情况", app.Activity, reason); err != nil {
 				return err
 			}
+		case "withdraw":
+			if user.Role != domain.RoleStudent || user.StudentID != app.StudentID {
+				return ErrForbidden
+			}
+			if app.Status != domain.StatusPendingReviewer {
+				return ErrInvalidTransition
+			}
+			app.Status = domain.StatusRejected
+			app.ReviewerOpinion = "学生自行撤回"
+			if err := s.AddLog(tx, user, "撤回申请", app.Activity, "学生自行撤回"); err != nil {
+				return err
+			}
 		case "publicity-finish":
 			if app.Status != domain.StatusPublicity {
 				return ErrInvalidTransition
+			}
+			// 公示至少已过 1 小时才允许手动结束
+			if app.PublicityUntil != nil && app.PublicityUntil.After(now.Add(47*time.Hour)) {
+				return fmt.Errorf("公示至少需满 1 小时才能手动结束")
 			}
 			app.Status = domain.StatusPendingAdmin
 			if err := s.AddLog(tx, user, "班级公示结束", app.Activity, "进入管理员复审"); err != nil {
@@ -284,6 +310,88 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if err := s.AddLog(tx, user, "管理员驳回", app.Activity, reason); err != nil {
 				return err
 			}
+		case "object":
+			if user.Role != domain.RoleStudent {
+				return ErrForbidden
+			}
+			if user.StudentID == app.StudentID {
+				return fmt.Errorf("不能对自己的申请提出异议")
+			}
+			if app.Status != domain.StatusPublicity {
+				return ErrInvalidTransition
+			}
+			reason, err := RequireReason(req.Reason, "objection reason is required")
+			if err != nil {
+				return err
+			}
+			obj := domain.Objection{
+				ID:            NewID("obj"),
+				ApplicationID: app.ID,
+				Student:       user.DisplayName,
+				StudentID:     user.StudentID,
+				Reason:        reason,
+				CreatedAt:     now,
+			}
+			if err := tx.Create(&obj).Error; err != nil {
+				return err
+			}
+			if err := s.AddLog(tx, user, "提出异议", app.Activity, reason); err != nil {
+				return err
+			}
+			// 异议不改变申请状态，直接返回当前状态
+			app.UpdatedAt = now
+			return tx.Save(&app).Error
+		case "appeal":
+			reason, err := RequireReason(req.Reason, "appeal reason is required")
+			if err != nil {
+				return err
+			}
+			app.Status = domain.StatusAppealing
+			app.SpecialReason = reason
+			if err := s.AddLog(tx, user, "学生申诉", app.Activity, reason); err != nil {
+				return err
+			}
+		case "appeal-approve":
+			if user.Role != domain.RoleAdmin {
+				return ErrForbidden
+			}
+			if app.Status != domain.StatusAppealing {
+				return ErrInvalidTransition
+			}
+			// 恢复原始申报分
+			if app.Score != app.ClaimedScore {
+				app.Score = app.ClaimedScore
+			}
+			// 重新进入公示期，让其他同学有机会提异议
+			publicityUntil := now.Add(48 * time.Hour)
+			app.PublicityUntil = &publicityUntil
+			app.Status = domain.StatusPublicity
+			app.AdminOpinion = DefaultText(req.Reason, "管理员采纳申诉，重新进入公示")
+			if err := s.AddLog(tx, user, "采纳申诉", app.Activity, "恢复原始分数并重新公示"); err != nil {
+				return err
+			}
+		case "appeal-reject":
+			if user.Role != domain.RoleAdmin {
+				return ErrForbidden
+			}
+			if app.Status != domain.StatusAppealing {
+				return ErrInvalidTransition
+			}
+			reason, err := RequireReason(req.Reason, "reject reason is required")
+			if err != nil {
+				return err
+			}
+			// 分数未被改 → 申诉针对的是驳回 → 回到已驳回
+			// 分数被改过 → 申诉针对的是改分 → 回到已通过（维持改后分数）
+			if app.ClaimedScore == app.Score {
+				app.Status = domain.StatusRejected
+			} else {
+				app.Status = domain.StatusApproved
+			}
+			app.AdminOpinion = reason
+			if err := s.AddLog(tx, user, "驳回申诉", app.Activity, reason); err != nil {
+				return err
+			}
 		default:
 			return gorm.ErrRecordNotFound
 		}
@@ -291,6 +399,12 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 		return tx.Save(&app).Error
 	})
 	return app, err
+}
+
+func (s *Service) ListObjections(applicationID string) ([]domain.Objection, error) {
+	var list []domain.Objection
+	err := s.db.Where("application_id = ?", applicationID).Order("created_at DESC").Find(&list).Error
+	return list, err
 }
 
 func (s *Service) ensureApplicationActor(user domain.User, app domain.Application, action string) error {
@@ -306,7 +420,11 @@ func (s *Service) ensureApplicationActor(user domain.User, app domain.Applicatio
 			return ErrForbidden
 		}
 		return nil
-	case "admin-pass", "admin-reject":
+	case "object", "withdraw":
+		return nil // 权限在 ApplicationAction 中判断
+	case "appeal":
+		return nil // 权限在 ApplicationAction 中自行判断
+	case "admin-pass", "admin-reject", "appeal-approve", "appeal-reject":
 		if user.Role != domain.RoleAdmin {
 			return ErrForbidden
 		}

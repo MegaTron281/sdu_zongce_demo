@@ -18,6 +18,7 @@ var (
 	ErrSummaryPhaseLocked = errors.New("summary phase is locked for new applications")
 	ErrInvalidTransition  = errors.New("invalid status transition")
 	ErrReasonRequired     = errors.New("reason is required")
+	ErrWrongPassword      = errors.New("wrong password")
 )
 
 func HashPassword(password string) (string, error) {
@@ -34,14 +35,30 @@ func (s *Service) Login(req domain.LoginRequest) (domain.User, string, time.Time
 	}
 
 	var user domain.User
-	if err := s.db.Where("role = ? AND account = ?", role, account).First(&user).Error; err != nil {
-		if IsNotFound(err) {
-			return domain.User{}, "", time.Time{}, ErrUnauthorized
+	// 班委本身也是学生，允许以 student 身份登录
+	if role == domain.RoleStudent {
+		// 以学生身份登录：只要该账号有学号即可（包括班委账号）
+		if err := s.db.Where("account = ? AND student_id <> ''", account).First(&user).Error; err != nil {
+			if IsNotFound(err) {
+				return domain.User{}, "", time.Time{}, ErrUnauthorized
+			}
+			return domain.User{}, "", time.Time{}, err
 		}
-		return domain.User{}, "", time.Time{}, err
+	} else {
+		if err := s.db.Where("role = ? AND account = ?", role, account).First(&user).Error; err != nil {
+			if IsNotFound(err) {
+				return domain.User{}, "", time.Time{}, ErrUnauthorized
+			}
+			return domain.User{}, "", time.Time{}, err
+		}
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return domain.User{}, "", time.Time{}, ErrUnauthorized
+	}
+
+	// 班委以 student 身份登录时，session 中角色记为 student
+	if role == domain.RoleStudent && user.StudentID != "" {
+		user.Role = domain.RoleStudent
 	}
 
 	token, err := NewToken()

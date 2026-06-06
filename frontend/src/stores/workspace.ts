@@ -1,12 +1,11 @@
 import { defineStore } from "pinia";
 import { api } from "@/api/client";
-import type { Activity, Application, AuditLog, RuleVersion, StudentScore } from "@/api/types";
+import type { Activity, Application, AuditLog, StudentScore } from "@/api/types";
 
 interface WorkspaceState {
   activities: Activity[];
   applications: Application[];
   publicity: Application[];
-  rules: RuleVersion[];
   logs: AuditLog[];
   score: StudentScore | null;
   scoreRows: StudentScore[];
@@ -20,7 +19,6 @@ export const useWorkspaceStore = defineStore("workspace", {
     activities: [],
     applications: [],
     publicity: [],
-    rules: [],
     logs: [],
     score: null,
     scoreRows: [],
@@ -49,8 +47,7 @@ export const useWorkspaceStore = defineStore("workspace", {
     },
     async loadAdmin() {
       await this.loadBase();
-      const [rules, logs] = await Promise.all([api.rules(), api.logs()]);
-      this.rules = rules;
+      const logs = await api.logs();
       this.logs = logs;
       const ids = new Set(this.applications.map((item) => item.studentId));
       this.scoreRows = await Promise.all([...ids].map((id) => api.score(id)));

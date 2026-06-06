@@ -1,10 +1,8 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"demo1/internal/domain"
 
@@ -16,16 +14,11 @@ func (s *Service) Meta() (domain.MetaResponse, error) {
 	if err := s.db.Where("active = ?", true).First(&cycle).Error; err != nil && !IsNotFound(err) {
 		return domain.MetaResponse{}, err
 	}
-	rule, err := s.ActiveRule(s.db)
-	if err != nil {
-		return domain.MetaResponse{}, err
-	}
 	return domain.MetaResponse{
 		SummaryPhase:        cycle.SummaryPhase,
 		ApplicationStatuses: domain.ApplicationStatuses,
 		ActivityStatuses:    domain.ActivityStatuses,
 		Modules:             domain.ModuleNames,
-		ActiveRule:          domain.RuleSummary{ID: rule.ID, Name: rule.Name},
 	}, nil
 }
 
@@ -159,45 +152,6 @@ func (s *Service) PatchActivity(user domain.User, id string, patch domain.Activi
 		return domain.ActivityWithCount{}, err
 	}
 	return domain.ActivityWithCount{Activity: activity, Applications: count}, nil
-}
-
-func (s *Service) ListRules() ([]domain.RuleVersion, error) {
-	var rules []domain.RuleVersion
-	err := s.db.Order("created_at DESC").Find(&rules).Error
-	return rules, err
-}
-
-func (s *Service) CreateRule(user domain.User, rule domain.RuleVersion) (domain.RuleVersion, error) {
-	if user.Role != domain.RoleAdmin {
-		return domain.RuleVersion{}, ErrForbidden
-	}
-	if strings.TrimSpace(rule.Name) == "" {
-		return domain.RuleVersion{}, errors.New("rule name is required")
-	}
-	if len(rule.Matrix) == 0 {
-		return domain.RuleVersion{}, errors.New("rule matrix is required")
-	}
-	if len(rule.ModuleMax) == 0 {
-		rule.ModuleMax = map[string]float64{"身心素养": 25, "文艺素养": 25, "劳动素养": 25, "创新素养": 25}
-	}
-	if rule.ID == "" {
-		rule.ID = "rule-" + time.Now().Format("20060102150405")
-	}
-	rule.Active = true
-	rule.PublishedAt = time.Now().Format("2006-01-02")
-	now := s.now()
-	rule.CreatedAt = now
-	rule.UpdatedAt = now
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&domain.RuleVersion{}).Where("active = ?", true).Update("active", false).Error; err != nil {
-			return err
-		}
-		if err := tx.Create(&rule).Error; err != nil {
-			return err
-		}
-		return s.AddLog(tx, user, "发布规则版本", rule.Name, "新规则对后续计分生效")
-	})
-	return rule, err
 }
 
 func (s *Service) Logs(user domain.User) ([]domain.AuditLog, error) {

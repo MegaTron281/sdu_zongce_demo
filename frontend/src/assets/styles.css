@@ -203,6 +203,21 @@ textarea:disabled {
   min-width: 340px;
 }
 
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.role-badge.admin {
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .role-switch,
 .nav-list,
 .topbar-actions,
@@ -626,6 +641,104 @@ th {
   color: var(--muted);
   background: rgba(255, 255, 255, 0.7);
   text-align: center;
+}
+
+/* ─── 修改密码弹窗 ─── */
+.pwd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(48, 50, 58, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.pwd-modal-card {
+  width: min(440px, 92vw);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 24px 48px rgba(92, 39, 25, 0.18);
+  padding: 28px 30px 24px;
+  animation: pwdFadeIn 0.2s ease;
+}
+
+@keyframes pwdFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.pwd-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.pwd-modal-header h3 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.pwd-modal-header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.pwd-modal-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fef3f2;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.pwd-modal-close {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.pwd-modal-close:hover {
+  color: var(--text);
+}
+
+.pwd-form {
+  display: grid;
+  gap: 14px;
+}
+
+.pwd-form .field label {
+  margin-bottom: 4px;
+}
+
+.pwd-form .input {
+  width: 100%;
+}
+
+.pwd-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.notice-strip.success {
+  border-color: #b7ebd0;
+  background: #e6ffed;
+  color: #1a7f3f;
 }
 
 @media (max-width: 980px) {

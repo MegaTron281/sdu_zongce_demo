@@ -22,7 +22,6 @@ func newTestService(t *testing.T) *Service {
 		&domain.Session{},
 		&domain.AssessmentCycle{},
 		&domain.Activity{},
-		&domain.RuleVersion{},
 		&domain.Application{},
 		&domain.AcademicScore{},
 		&domain.AuditLog{},
@@ -43,14 +42,6 @@ func seedFixture(t *testing.T, svc *Service) {
 	now := time.Now()
 	if err := svc.db.Create(&domain.AssessmentCycle{ID: "c1", Name: "test", Active: true, CreatedAt: now, UpdatedAt: now}).Error; err != nil {
 		t.Fatalf("seed cycle: %v", err)
-	}
-	if err := svc.db.Create(&domain.RuleVersion{
-		ID: "r1", Name: "rule", Active: true, PublishedAt: "2026-01-01",
-		Matrix:    map[string]float64{"省级:一等奖": 12, "校级:二等奖": 6},
-		ModuleMax: map[string]float64{"创新素养": 25, "劳动素养": 25},
-		CreatedAt: now, UpdatedAt: now,
-	}).Error; err != nil {
-		t.Fatalf("seed rule: %v", err)
 	}
 	if err := svc.db.Create(&domain.Activity{
 		ID: "act1", Name: "省级创新", Level: "省级", Category: "创新素养", Status: domain.ActivityStatusListed,
@@ -168,7 +159,7 @@ func TestCreateApplication_BlocksDuplicateInSameCycle(t *testing.T) {
 	student := domain.User{ID: "u-stu", Role: domain.RoleStudent, DisplayName: "李明", StudentID: "20230001", ClassName: "C1"}
 
 	_, err := svc.CreateApplication(student, domain.ApplicationCreateRequest{
-		ActivityID: "act1", AwardLevel: "一等奖", ProjectType: "个人项目", Rank: 1,
+		ActivityID: "act1", AwardLevel: "一等奖", ProjectType: "个人项目", Rank: 1, Score: 12,
 	})
 	if !errors.Is(err, ErrDuplicateApply) {
 		t.Fatalf("expected ErrDuplicateApply, got %v", err)
@@ -188,6 +179,7 @@ func TestCreateApplication_AllowsStudentFilledActivity(t *testing.T) {
 		AwardLevel:   "二等奖",
 		ProjectType:  "个人项目",
 		Rank:         1,
+		Score:        6,
 		Materials:    []string{"证明材料"},
 	})
 	if err != nil {
@@ -199,8 +191,8 @@ func TestCreateApplication_AllowsStudentFilledActivity(t *testing.T) {
 	if app.ActivityID == "" {
 		t.Fatal("expected generated activity id")
 	}
-	if app.Score != 6 {
-		t.Fatalf("score=%v, want 6", app.Score)
+	if app.ClaimedScore != 6 {
+		t.Fatalf("claimedScore=%v, want 6", app.ClaimedScore)
 	}
 
 	var activity domain.Activity
@@ -221,7 +213,7 @@ func TestCreateApplication_BlockedBySummaryPhase(t *testing.T) {
 	student := domain.User{ID: "u-stu", Role: domain.RoleStudent, DisplayName: "李明", StudentID: "20230001", ClassName: "C1"}
 
 	_, err := svc.CreateApplication(student, domain.ApplicationCreateRequest{
-		ActivityID: "act1", AwardLevel: "一等奖", ProjectType: "个人项目", Rank: 1,
+		ActivityID: "act1", AwardLevel: "一等奖", ProjectType: "个人项目", Rank: 1, Score: 12,
 	})
 	if !errors.Is(err, ErrSummaryPhaseLocked) {
 		t.Fatalf("expected ErrSummaryPhaseLocked, got %v", err)

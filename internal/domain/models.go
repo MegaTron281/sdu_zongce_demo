@@ -15,6 +15,7 @@ const (
 	StatusApproved        = "已通过"
 	StatusRejected        = "已驳回"
 	StatusSpecial         = "特殊情况处理中"
+	StatusAppealing       = "申诉中"
 )
 
 const (
@@ -30,6 +31,7 @@ var ApplicationStatuses = []string{
 	StatusApproved,
 	StatusRejected,
 	StatusSpecial,
+	StatusAppealing,
 }
 
 var ActivityStatuses = []string{
@@ -99,6 +101,7 @@ type Application struct {
 	ProjectType     string     `json:"projectType"`
 	Rank            int        `json:"rank"`
 	Score           float64    `json:"score"`
+	ClaimedScore    float64    `json:"claimedScore"`
 	Status          string     `json:"status"`
 	SubmittedAt     string     `json:"submittedAt"`
 	PublicityUntil  *time.Time `json:"publicityUntil,omitempty"`
@@ -111,17 +114,6 @@ type Application struct {
 	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
-type RuleVersion struct {
-	ID          string             `gorm:"primaryKey" json:"id"`
-	Name        string             `json:"name"`
-	Active      bool               `json:"active"`
-	PublishedAt string             `json:"publishedAt"`
-	Matrix      map[string]float64 `gorm:"serializer:json;type:jsonb" json:"matrix"`
-	ModuleMax   map[string]float64 `gorm:"serializer:json;type:jsonb;column:module_max" json:"moduleMax"`
-	CreatedAt   time.Time          `json:"createdAt"`
-	UpdatedAt   time.Time          `json:"updatedAt"`
-}
-
 type AcademicScore struct {
 	StudentID string    `gorm:"primaryKey" json:"studentId"`
 	Student   string    `json:"student"`
@@ -129,6 +121,15 @@ type AcademicScore struct {
 	Score     float64   `json:"score"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type Objection struct {
+	ID            string    `gorm:"primaryKey" json:"id"`
+	ApplicationID string    `json:"applicationId"`
+	Student       string    `json:"student"`
+	StudentID     string    `json:"studentId"`
+	Reason        string    `json:"reason"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 type AuditLog struct {

@@ -1,0 +1,2 @@
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS claimed_score NUMERIC(8,2) NOT NULL DEFAULT 0;
+DROP TABLE IF EXISTS rule_versions;

@@ -31,10 +31,19 @@ npm run dev    # 监听 :5173，/api 代理到 :8080
 
 前端（生产）：执行 `npm run build`，Gin 会自动从 `frontend/dist` 提供静态文件并把非 `/api/*` 的路由 fallback 到 `index.html`。
 
-Demo 账号（密码统一 `123456`）：
-- student: `20230001`
-- reviewer: `20230002`
-- admin: `coach-wang`（显示名"辅导员 王老师"）
+Demo 账号（密码统一 `123456`，初次使用需跑 `go run ./cmd/seed`）：
+
+**含历史数据的演示账号：**
+- student: `20230001`（李明，有申请记录和成绩）
+- reviewer: `20230002`（陈欣，有申请记录和成绩）
+- student: `20230003`（王悦）
+- student: `20230004`（赵然）
+
+**空白测试账号：**
+- student: `202300221077`（晏陆君）
+- student: `202300271018`（金瑞开）
+- reviewer: `202300202018`（班委 巩浩，可用 student 身份登录）
+- admin: `zhangmiao`（辅导员张苗）
 
 ## Architecture
 

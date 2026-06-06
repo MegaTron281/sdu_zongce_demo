@@ -8,6 +8,7 @@ export const ApplicationStatus = {
   Approved: "已通过",
   Rejected: "已驳回",
   Special: "特殊情况处理中",
+  Appealing: "申诉中",
 } as const;
 
 export type ApplicationStatusValue = (typeof ApplicationStatus)[keyof typeof ApplicationStatus];
@@ -27,6 +28,7 @@ const colorMap: Record<string, string> = {
   [ApplicationStatus.Approved]: "green",
   [ApplicationStatus.Rejected]: "red",
   [ApplicationStatus.Special]: "amber",
+  [ApplicationStatus.Appealing]: "amber",
   [ActivityStatus.Listed]: "green",
   [ActivityStatus.Pending]: "amber",
 };

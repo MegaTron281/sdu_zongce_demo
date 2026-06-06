@@ -34,7 +34,6 @@ function apply(id: string) {
     <div class="stat"><span>可申报活动</span><strong>{{ activities.length }}</strong></div>
     <div class="stat"><span>我的申请</span><strong>{{ workspace.applications.length }}</strong></div>
     <div class="stat"><span>当前阶段</span><strong>{{ auth.meta?.summaryPhase ? "汇总期" : "申报期" }}</strong></div>
-    <div class="stat"><span>当前规则</span><strong>{{ auth.meta?.activeRule.name }}</strong></div>
   </div>
 
   <div class="toolbar">
