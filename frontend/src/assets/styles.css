@@ -54,12 +54,12 @@ textarea:disabled {
 
 .login-hero {
   display: grid;
-  align-content: space-between;
+  place-items: center;
   padding: 42px;
   color: #ffffff;
   background:
     linear-gradient(rgba(97, 14, 10, 0.76), rgba(97, 14, 10, 0.46)),
-    url("https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1600&q=80") center/cover;
+    url("/login_container_bg_05.jpg") center/cover;
 }
 
 .brand {
