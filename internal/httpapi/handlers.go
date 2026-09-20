@@ -174,13 +174,7 @@ func (s *Server) publicity(c *gin.Context) {
 }
 
 func (s *Server) score(c *gin.Context) {
-	user := currentUser(c)
-	studentID := c.Param("studentId")
-	if user.Role == domain.RoleStudent && user.StudentID != studentID {
-		writeError(c, service.ErrForbidden)
-		return
-	}
-	score, err := s.svc.StudentScore(studentID)
+	score, err := s.svc.StudentScoreFor(currentUser(c), c.Param("studentId"))
 	if err != nil {
 		writeError(c, err)
 		return
@@ -198,22 +192,45 @@ func (s *Server) logs(c *gin.Context) {
 }
 
 func (s *Server) exportScores(c *gin.Context) {
+	actor := currentUser(c)
 	ids := map[string]bool{}
-	var academics []domain.AcademicScore
-	if err := s.svc.DB().Find(&academics).Error; err != nil {
-		writeError(c, err)
-		return
-	}
-	for _, item := range academics {
-		ids[item.StudentID] = true
-	}
-	var apps []domain.Application
-	if err := s.svc.DB().Select("student_id").Find(&apps).Error; err != nil {
-		writeError(c, err)
-		return
-	}
-	for _, app := range apps {
-		ids[app.StudentID] = true
+	// 系统管理员导出全校；辅导员只导出管辖班级；未配置管辖班级则导出空表（fail-closed）
+	if service.IsSuperAdmin(actor) {
+		var academics []domain.AcademicScore
+		if err := s.svc.DB().Find(&academics).Error; err != nil {
+			writeError(c, err)
+			return
+		}
+		for _, item := range academics {
+			ids[item.StudentID] = true
+		}
+		var apps []domain.Application
+		if err := s.svc.DB().Select("student_id").Find(&apps).Error; err != nil {
+			writeError(c, err)
+			return
+		}
+		for _, app := range apps {
+			ids[app.StudentID] = true
+		}
+	} else if len(actor.ManagedClasses) > 0 {
+		var academics []domain.AcademicScore
+		if err := s.svc.DB().Where("class_name IN ?", actor.ManagedClasses).Find(&academics).Error; err != nil {
+			writeError(c, err)
+			return
+		}
+		for _, item := range academics {
+			ids[item.StudentID] = true
+		}
+		var apps []domain.Application
+		if err := s.svc.DB().Select("student_id").
+			Where("class_name IN ?", actor.ManagedClasses).
+			Find(&apps).Error; err != nil {
+			writeError(c, err)
+			return
+		}
+		for _, app := range apps {
+			ids[app.StudentID] = true
+		}
 	}
 
 	sortedIDs := make([]string, 0, len(ids))
@@ -263,7 +280,7 @@ func (s *Server) changePassword(c *gin.Context) {
 
 func (s *Server) listUsers(c *gin.Context) {
 	limit, offset := pagination(c)
-	items, err := s.svc.ListUsers(limit, offset)
+	items, err := s.svc.ListUsers(currentUser(c), limit, offset)
 	if err != nil {
 		writeError(c, err)
 		return
@@ -301,10 +318,24 @@ func (s *Server) updateUserRole(c *gin.Context) {
 }
 
 func (s *Server) listObjections(c *gin.Context) {
-	list, err := s.svc.ListObjections(c.Param("id"))
+	list, err := s.svc.ListObjections(currentUser(c), c.Param("id"))
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, list)
+}
+
+func (s *Server) updateUserClasses(c *gin.Context) {
+	var req domain.UpdateClassesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, err)
+		return
+	}
+	user, err := s.svc.UpdateUserClasses(currentUser(c), c.Param("id"), req.Classes)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": domain.ToAuthUser(user)})
 }

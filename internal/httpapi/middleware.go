@@ -60,7 +60,9 @@ func currentUser(c *gin.Context) domain.User {
 func writeError(c *gin.Context, err error) {
 	status := http.StatusBadRequest
 	switch {
-	case errors.Is(err, service.ErrUnauthorized):
+	case errors.Is(err, service.ErrUnauthorized),
+		errors.Is(err, service.ErrAccountNotFound),
+		errors.Is(err, service.ErrRoleMismatch):
 		status = http.StatusUnauthorized
 	case errors.Is(err, service.ErrForbidden):
 		status = http.StatusForbidden

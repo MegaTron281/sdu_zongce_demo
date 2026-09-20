@@ -14,11 +14,13 @@ import (
 var (
 	ErrUnauthorized       = errors.New("unauthorized")
 	ErrForbidden          = errors.New("forbidden")
+	ErrAccountNotFound    = errors.New("该账号不存在")
+	ErrRoleMismatch       = errors.New("该账号与所选登录身份不符")
 	ErrDuplicateApply     = errors.New("duplicate active application")
 	ErrSummaryPhaseLocked = errors.New("summary phase is locked for new applications")
 	ErrInvalidTransition  = errors.New("invalid status transition")
 	ErrReasonRequired     = errors.New("reason is required")
-	ErrWrongPassword      = errors.New("wrong password")
+	ErrWrongPassword      = errors.New("密码错误")
 )
 
 func HashPassword(password string) (string, error) {
@@ -35,25 +37,25 @@ func (s *Service) Login(req domain.LoginRequest) (domain.User, string, time.Time
 	}
 
 	var user domain.User
-	// 班委本身也是学生，允许以 student 身份登录
-	if role == domain.RoleStudent {
-		// 以学生身份登录：只要该账号有学号即可（包括班委账号）
-		if err := s.db.Where("account = ? AND student_id <> ''", account).First(&user).Error; err != nil {
-			if IsNotFound(err) {
-				return domain.User{}, "", time.Time{}, ErrUnauthorized
-			}
-			return domain.User{}, "", time.Time{}, err
+	// 先按账号查人，把"账号不存在 / 身份不符 / 密码错误"三种失败区分开
+	if err := s.db.Where("account = ?", account).First(&user).Error; err != nil {
+		if IsNotFound(err) {
+			return domain.User{}, "", time.Time{}, ErrAccountNotFound
 		}
-	} else {
-		if err := s.db.Where("role = ? AND account = ?", role, account).First(&user).Error; err != nil {
-			if IsNotFound(err) {
-				return domain.User{}, "", time.Time{}, ErrUnauthorized
-			}
-			return domain.User{}, "", time.Time{}, err
-		}
+		return domain.User{}, "", time.Time{}, err
 	}
+
+	// 班委本身也是学生，允许以 student 身份登录（有学号即可，包括班委账号）
+	if role == domain.RoleStudent {
+		if user.StudentID == "" {
+			return domain.User{}, "", time.Time{}, ErrRoleMismatch
+		}
+	} else if user.Role != role {
+		return domain.User{}, "", time.Time{}, ErrRoleMismatch
+	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return domain.User{}, "", time.Time{}, ErrUnauthorized
+		return domain.User{}, "", time.Time{}, ErrWrongPassword
 	}
 
 	// 班委以 student 身份登录时，session 中角色记为 student
@@ -70,6 +72,7 @@ func (s *Service) Login(req domain.LoginRequest) (domain.User, string, time.Time
 		ID:        NewID("sess"),
 		UserID:    user.ID,
 		TokenHash: s.TokenHash(token),
+		Role:      user.Role,
 		ExpiresAt: expiresAt,
 		CreatedAt: s.now(),
 		UpdatedAt: s.now(),
@@ -100,6 +103,14 @@ func (s *Service) AuthenticateToken(token string) (domain.User, error) {
 			return domain.User{}, ErrUnauthorized
 		}
 		return domain.User{}, err
+	}
+	// 会话角色优先于用户表默认角色（双身份登录）
+	if session.Role != "" {
+		session.User.Role = session.Role
+	} else if session.User.Role == domain.RoleReviewer {
+		// 兼容修复：旧会话没有记录登录身份，班委按最小权限降级为学生视角，
+		// 避免"我的申请"按班级展示全班数据；重新登录即可恢复班委身份。
+		session.User.Role = domain.RoleStudent
 	}
 	return session.User, nil
 }

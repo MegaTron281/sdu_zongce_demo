@@ -11,7 +11,7 @@ interface AuthState {
 export const roleLabels: Record<Role, string> = {
   student: "普通学生",
   reviewer: "审核学生",
-  admin: "管理员",
+  admin: "辅导员",
 };
 
 export const useAuthStore = defineStore("auth", {

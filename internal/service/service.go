@@ -91,3 +91,46 @@ func DefaultText(value, fallback string) string {
 	}
 	return value
 }
+
+// classesContain 判断班级是否在管辖/可见班级集合内。
+func classesContain(classes []string, className string) bool {
+	className = strings.TrimSpace(className)
+	if className == "" {
+		return false
+	}
+	for _, item := range classes {
+		if strings.TrimSpace(item) == className {
+			return true
+		}
+	}
+	return false
+}
+
+// visibleClasses 返回用户可见的班级集合：
+// student/reviewer 只看本班；admin 只看管辖班级（未配置则不可见任何班级数据，fail-closed）。
+func (s *Service) visibleClasses(user domain.User) []string {
+	switch user.Role {
+	case domain.RoleStudent, domain.RoleReviewer:
+		if user.ClassName == "" {
+			return nil
+		}
+		return []string{user.ClassName}
+	case domain.RoleAdmin:
+		return user.ManagedClasses
+	default:
+		return nil
+	}
+}
+
+// IsSuperAdmin 系统管理员：admin 角色 + 超管标志，不受管辖班级限制，唯一能指定辅导员管辖班级的身份。
+func IsSuperAdmin(user domain.User) bool {
+	return user.Role == domain.RoleAdmin && user.IsSuperAdmin
+}
+
+// canAccessClass 判断用户能否访问某班级数据：系统管理员不受限，其余按 visibleClasses。
+func (s *Service) canAccessClass(user domain.User, className string) bool {
+	if IsSuperAdmin(user) {
+		return true
+	}
+	return classesContain(s.visibleClasses(user), className)
+}

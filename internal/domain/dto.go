@@ -3,20 +3,24 @@ package domain
 import "time"
 
 type AuthUser struct {
-	ID          string `json:"id"`
-	Role        string `json:"role"`
-	DisplayName string `json:"displayName"`
-	StudentID   string `json:"studentId,omitempty"`
-	ClassName   string `json:"className,omitempty"`
+	ID             string   `json:"id"`
+	Role           string   `json:"role"`
+	DisplayName    string   `json:"displayName"`
+	StudentID      string   `json:"studentId,omitempty"`
+	ClassName      string   `json:"className,omitempty"`
+	ManagedClasses []string `json:"managedClasses,omitempty"`
+	IsSuperAdmin   bool     `json:"isSuperAdmin,omitempty"`
 }
 
 func ToAuthUser(user User) AuthUser {
 	return AuthUser{
-		ID:          user.ID,
-		Role:        user.Role,
-		DisplayName: user.DisplayName,
-		StudentID:   user.StudentID,
-		ClassName:   user.ClassName,
+		ID:             user.ID,
+		Role:           user.Role,
+		DisplayName:    user.DisplayName,
+		StudentID:      user.StudentID,
+		ClassName:      user.ClassName,
+		ManagedClasses: user.ManagedClasses,
+		IsSuperAdmin:   user.IsSuperAdmin,
 	}
 }
 
@@ -85,13 +89,15 @@ type ChangePasswordRequest struct {
 }
 
 type UserListItem struct {
-	ID          string `json:"id"`
-	Role        string `json:"role"`
-	DisplayName string `json:"displayName"`
-	StudentID   string `json:"studentId,omitempty"`
-	ClassName   string `json:"className,omitempty"`
-	Account     string `json:"account"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID             string    `json:"id"`
+	Role           string    `json:"role"`
+	DisplayName    string    `json:"displayName"`
+	StudentID      string    `json:"studentId,omitempty"`
+	ClassName      string    `json:"className,omitempty"`
+	Account        string    `json:"account"`
+	ManagedClasses []string  `json:"managedClasses,omitempty"`
+	IsSuperAdmin   bool      `json:"isSuperAdmin,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
 }
 
 type UserImportResult struct {
@@ -102,4 +108,8 @@ type UserImportResult struct {
 
 type UpdateRoleRequest struct {
 	Role string `json:"role" binding:"required"`
+}
+
+type UpdateClassesRequest struct {
+	Classes []string `json:"classes" binding:"required"`
 }

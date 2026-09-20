@@ -3,6 +3,7 @@ import { computed, onMounted, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { daysUntil } from "@/api/format";
 import StatusTag from "@/components/StatusTag.vue";
+import { ActivityStatus } from "@/constants/status";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -15,6 +16,8 @@ onMounted(() => auth.user?.studentId && workspace.loadStudent(auth.user.studentI
 
 const activities = computed(() =>
   workspace.activities.filter((item) => {
+    // 学生只看已上架活动，待审核/已驳回的不对学生展示
+    if (item.status !== ActivityStatus.Listed) return false;
     const keyword = `${item.name}${item.organizer}${item.category}`;
     return (
       (!filters.q || keyword.includes(filters.q)) &&

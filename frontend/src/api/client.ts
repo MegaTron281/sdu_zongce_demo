@@ -139,4 +139,10 @@ export const api = {
       body: { role },
     });
   },
+  updateUserClasses(id: string, classes: string[]) {
+    return request<{ user: AuthUser }>(`/api/admin/users/${encodeURIComponent(id)}/classes`, {
+      method: "PATCH",
+      body: { classes },
+    });
+  },
 };

@@ -6,6 +6,8 @@ export interface AuthUser {
   displayName: string;
   studentId?: string;
   className?: string;
+  managedClasses?: string[];
+  isSuperAdmin?: boolean;
 }
 
 export interface MetaResponse {
@@ -101,6 +103,8 @@ export interface UserListItem {
   studentId?: string;
   className?: string;
   account: string;
+  managedClasses?: string[];
+  isSuperAdmin?: boolean;
   createdAt: string;
 }
 

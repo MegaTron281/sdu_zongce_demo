@@ -13,10 +13,18 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ListUsers 返回全部用户列表（管理员功能）
-func (s *Service) ListUsers(limit, offset int) ([]domain.UserListItem, error) {
+// ListUsers 返回用户列表（管理员功能）。
+// 系统管理员可见全部用户；辅导员只能看到管辖班级内的学生/班委账号 + 自己；未配置管辖班级则只能看到自己。
+func (s *Service) ListUsers(actor domain.User, limit, offset int) ([]domain.UserListItem, error) {
 	var users []domain.User
 	query := s.db.Order("created_at DESC")
+	if !IsSuperAdmin(actor) {
+		if len(actor.ManagedClasses) > 0 {
+			query = query.Where("class_name IN ? OR id = ?", actor.ManagedClasses, actor.ID)
+		} else {
+			query = query.Where("id = ?", actor.ID)
+		}
+	}
 	if limit > 0 {
 		query = query.Limit(limit).Offset(offset)
 	}
@@ -26,13 +34,15 @@ func (s *Service) ListUsers(limit, offset int) ([]domain.UserListItem, error) {
 	items := make([]domain.UserListItem, 0, len(users))
 	for _, u := range users {
 		items = append(items, domain.UserListItem{
-			ID:          u.ID,
-			Role:        u.Role,
-			DisplayName: u.DisplayName,
-			StudentID:   u.StudentID,
-			ClassName:   u.ClassName,
-			Account:     u.Account,
-			CreatedAt:   u.CreatedAt,
+			ID:             u.ID,
+			Role:           u.Role,
+			DisplayName:    u.DisplayName,
+			StudentID:      u.StudentID,
+			ClassName:      u.ClassName,
+			Account:        u.Account,
+			ManagedClasses: u.ManagedClasses,
+			IsSuperAdmin:   u.IsSuperAdmin,
+			CreatedAt:      u.CreatedAt,
 		})
 	}
 	return items, nil
@@ -151,19 +161,30 @@ func (s *Service) ChangePassword(user domain.User, oldPassword, newPassword stri
 	})
 }
 
-// UpdateUserRole 管理员修改用户角色（仅限 student ↔ reviewer）
+// UpdateUserRole 修改用户角色。
+// 辅导员：只能把管辖班级内的账号在 student ↔ reviewer 间调整；
+// 系统管理员：还可以任命/撤销辅导员（admin），但系统管理员本身的角色不可改动。
 func (s *Service) UpdateUserRole(actor domain.User, targetID, newRole string) error {
 	newRole = Trim(newRole)
-	if newRole != domain.RoleStudent && newRole != domain.RoleReviewer {
-		return fmt.Errorf("只能设置为 student 或 reviewer 角色")
+	if newRole != domain.RoleStudent && newRole != domain.RoleReviewer && newRole != domain.RoleAdmin {
+		return fmt.Errorf("只能设置为 student、reviewer 或 admin 角色")
 	}
 
 	var target domain.User
 	if err := s.db.First(&target, "id = ?", targetID).Error; err != nil {
 		return err
 	}
-	if target.Role == domain.RoleAdmin {
-		return fmt.Errorf("不能修改管理员角色")
+	if target.IsSuperAdmin {
+		return fmt.Errorf("系统管理员的角色不可修改")
+	}
+	if !IsSuperAdmin(actor) {
+		if newRole == domain.RoleAdmin {
+			return ErrForbidden
+		}
+		// 辅导员只能管理管辖班级内的账号
+		if !classesContain(actor.ManagedClasses, target.ClassName) {
+			return ErrForbidden
+		}
 	}
 	if target.Role == newRole {
 		return nil // 无需更改
@@ -186,4 +207,41 @@ func colAt(row []string, index int) string {
 		return row[index]
 	}
 	return ""
+}
+
+// UpdateUserClasses 指定辅导员的管辖班级。仅系统管理员可操作，辅导员无权自改。
+func (s *Service) UpdateUserClasses(actor domain.User, targetID string, classes []string) (domain.User, error) {
+	if !IsSuperAdmin(actor) {
+		return domain.User{}, ErrForbidden
+	}
+	cleaned := make([]string, 0, len(classes))
+	seen := map[string]bool{}
+	for _, item := range classes {
+		item = Trim(item)
+		if item == "" || seen[item] {
+			continue
+		}
+		seen[item] = true
+		cleaned = append(cleaned, item)
+	}
+	var target domain.User
+	if err := s.db.First(&target, "id = ?", targetID).Error; err != nil {
+		return domain.User{}, err
+	}
+	if target.Role != domain.RoleAdmin {
+		return domain.User{}, fmt.Errorf("只能设置辅导员账号的管辖班级")
+	}
+	if target.IsSuperAdmin {
+		return domain.User{}, fmt.Errorf("系统管理员不受管辖班级限制")
+	}
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		target.ManagedClasses = cleaned
+		if err := tx.Model(&target).Select("managed_classes").Updates(&target).Error; err != nil {
+			return err
+		}
+		return s.AddLog(tx, actor, "设置管辖班级", target.DisplayName, strings.Join(cleaned, "、"))
+	}); err != nil {
+		return domain.User{}, err
+	}
+	return target, nil
 }

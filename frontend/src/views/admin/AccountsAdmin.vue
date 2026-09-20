@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { api } from "@/api/client";
 import type { UserListItem, UserImportResult } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
@@ -11,6 +11,9 @@ const workspace = useWorkspaceStore();
 const users = ref<UserListItem[]>([]);
 const importResult = ref<UserImportResult | null>(null);
 const uploading = ref(false);
+const classEdits = reactive<Record<string, string>>({});
+// 只有系统管理员能指定辅导员的管辖班级；辅导员不可自改
+const isSuper = computed(() => auth.user?.isSuperAdmin === true);
 
 onMounted(async () => {
   await workspace.loadAdmin();
@@ -19,6 +22,11 @@ onMounted(async () => {
 
 async function loadUsers() {
   users.value = await api.listUsers();
+  for (const user of users.value) {
+    if (user.role === "admin" && classEdits[user.id] === undefined) {
+      classEdits[user.id] = (user.managedClasses ?? []).join("、");
+    }
+  }
 }
 
 async function handleFileChange(e: Event) {
@@ -48,6 +56,17 @@ async function changeRole(user: UserListItem, newRole: "student" | "reviewer") {
   const item = users.value.find((u) => u.id === user.id);
   if (item) item.role = newRole;
   workspace.setToast(user.role === "student" ? `已将 ${user.displayName} 设为班委` : `已取消 ${user.displayName} 的班委角色`);
+}
+
+async function saveClasses(user: UserListItem) {
+  const classes = (classEdits[user.id] ?? "")
+    .split(/[、,，\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const saved = await api.updateUserClasses(user.id, classes);
+  const item = users.value.find((u) => u.id === user.id);
+  if (item) item.managedClasses = saved.user.managedClasses ?? classes;
+  workspace.setToast(`已保存管辖班级：${(item?.managedClasses ?? []).join("、") || "（空）"}`);
 }
 
 async function togglePhase() {
@@ -107,6 +126,7 @@ async function togglePhase() {
             <th style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">班级</th>
             <th style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">角色</th>
             <th style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">操作</th>
+            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">管辖班级</th>
           </tr>
         </thead>
         <tbody>
@@ -115,7 +135,8 @@ async function togglePhase() {
             <td style="padding: 8px; border-bottom: 1px solid #f5f5f5;">{{ user.studentId || "-" }}</td>
             <td style="padding: 8px; border-bottom: 1px solid #f5f5f5;">{{ user.className || "-" }}</td>
             <td style="padding: 8px; border-bottom: 1px solid #f5f5f5;">
-              <span class="tag" :class="user.role === 'admin' ? 'red' : user.role === 'reviewer' ? 'blue' : 'green'">
+              <span v-if="user.isSuperAdmin" class="tag" style="background: #6b21a8; color: #fff;">系统管理员</span>
+              <span v-else class="tag" :class="user.role === 'admin' ? 'red' : user.role === 'reviewer' ? 'blue' : 'green'">
                 {{ roleLabels[user.role] }}
               </span>
             </td>
@@ -126,6 +147,25 @@ async function togglePhase() {
               <template v-else-if="user.role === 'reviewer'">
                 <button class="secondary" style="padding: 4px 10px; font-size: 0.8rem;" @click="changeRole(user, 'student')">取消班委</button>
               </template>
+              <span v-else class="meta">—</span>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #f5f5f5;">
+              <template v-if="user.role === 'admin' && !user.isSuperAdmin">
+                <template v-if="isSuper">
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <input
+                      v-model="classEdits[user.id]"
+                      class="input"
+                      style="max-width: 200px; font-size: 0.8rem;"
+                      placeholder="如：公信23、公信24"
+                    />
+                    <button class="secondary" style="padding: 4px 10px; font-size: 0.8rem;" @click="saveClasses(user)">保存</button>
+                  </div>
+                  <p class="meta" style="margin: 4px 0 0;">当前：{{ (user.managedClasses ?? []).join("、") || "未配置（看不到任何班级数据）" }}</p>
+                </template>
+                <span v-else class="meta">{{ (user.managedClasses ?? []).join("、") || "未配置（需系统管理员分配）" }}</span>
+              </template>
+              <span v-else class="meta">—</span>
             </td>
           </tr>
         </tbody>

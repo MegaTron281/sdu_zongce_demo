@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { api } from "@/api/client";
 import { formatNumber, publicityCountdown } from "@/api/format";
+import MaterialList from "@/components/MaterialList.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -53,7 +54,7 @@ function isOwnApplication(studentId: string): boolean {
 <template>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>姓名</th><th>活动名称</th><th>申报分</th><th>最终分</th><th>剩余公示时间</th><th>异议</th></tr></thead>
+      <thead><tr><th>姓名</th><th>活动名称</th><th>申报分</th><th>最终分</th><th>证明材料</th><th>剩余公示时间</th><th>异议</th></tr></thead>
       <tbody>
         <tr v-for="item in workspace.publicity" :key="item.id">
           <td>{{ item.student }}</td>
@@ -64,6 +65,7 @@ function isOwnApplication(studentId: string): boolean {
               {{ formatNumber(item.score) }}
             </span>
           </td>
+          <td><MaterialList :items="item.materials" /></td>
           <td>{{ publicityCountdown(item.publicityUntil) }}</td>
           <td>
             <button
@@ -76,7 +78,7 @@ function isOwnApplication(studentId: string): boolean {
             <span v-else class="meta">—</span>
           </td>
         </tr>
-        <tr v-if="workspace.publicity.length === 0"><td colspan="6">暂无公示中申请</td></tr>
+        <tr v-if="workspace.publicity.length === 0"><td colspan="7">暂无公示中申请</td></tr>
       </tbody>
     </table>
   </div>

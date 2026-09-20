@@ -43,21 +43,24 @@ var ActivityStatuses = []string{
 var ModuleNames = []string{"身心素养", "文艺素养", "劳动素养", "创新素养"}
 
 type User struct {
-	ID           string    `gorm:"primaryKey" json:"id"`
-	Role         string    `json:"role"`
-	DisplayName  string    `json:"displayName"`
-	StudentID    string    `json:"studentId,omitempty"`
-	ClassName    string    `json:"className,omitempty"`
-	Account      string    `json:"account"`
-	PasswordHash string    `json:"-"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID             string    `gorm:"primaryKey" json:"id"`
+	Role           string    `json:"role"`
+	DisplayName    string    `json:"displayName"`
+	StudentID      string    `json:"studentId,omitempty"`
+	ClassName      string    `json:"className,omitempty"`
+	Account        string    `json:"account"`
+	PasswordHash   string    `json:"-"`
+	ManagedClasses []string  `gorm:"serializer:json;type:jsonb" json:"managedClasses,omitempty"`
+	IsSuperAdmin   bool      `gorm:"not null;default:false" json:"isSuperAdmin,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 type Session struct {
 	ID        string     `gorm:"primaryKey" json:"id"`
 	UserID    string     `json:"userId"`
 	TokenHash string     `json:"-"`
+	Role      string     `json:"-"`
 	ExpiresAt time.Time  `json:"expiresAt"`
 	RevokedAt *time.Time `json:"revokedAt,omitempty"`
 	CreatedAt time.Time  `json:"createdAt"`

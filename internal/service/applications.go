@@ -58,10 +58,18 @@ func (s *Service) ListApplications(user domain.User, status, studentID, classNam
 	}
 	switch user.Role {
 	case domain.RoleStudent:
+		// 我的学生只能看自己的申请；即使请求里带了别的 studentId 也强制收敛到本人
 		query = query.Where("student_id = ?", user.StudentID)
 	case domain.RoleReviewer:
 		query = query.Where("class_name = ?", user.ClassName)
 	case domain.RoleAdmin:
+		// 系统管理员可见全部班级；辅导员只看管辖班级，未配置则看不到任何申请（fail-closed）
+		if !IsSuperAdmin(user) {
+			if len(user.ManagedClasses) == 0 {
+				return []domain.Application{}, nil
+			}
+			query = query.Where("class_name IN ?", user.ManagedClasses)
+		}
 	default:
 		return nil, ErrForbidden
 	}
@@ -75,8 +83,16 @@ func (s *Service) ListApplications(user domain.User, status, studentID, classNam
 
 func (s *Service) Publicity(user domain.User) ([]domain.Application, error) {
 	query := s.db.Where("status = ?", domain.StatusPublicity).Order("publicity_until ASC")
-	if user.Role == domain.RoleStudent || user.Role == domain.RoleReviewer {
+	switch user.Role {
+	case domain.RoleStudent, domain.RoleReviewer:
 		query = query.Where("class_name = ?", user.ClassName)
+	case domain.RoleAdmin:
+		if !IsSuperAdmin(user) {
+			if len(user.ManagedClasses) == 0 {
+				return []domain.Application{}, nil
+			}
+			query = query.Where("class_name IN ?", user.ManagedClasses)
+		}
 	}
 	var apps []domain.Application
 	err := query.Find(&apps).Error
@@ -317,6 +333,10 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if user.StudentID == app.StudentID {
 				return fmt.Errorf("不能对自己的申请提出异议")
 			}
+			// 异议仅限同班同学（公示墙只展示本班内容）
+			if user.ClassName != app.ClassName {
+				return ErrForbidden
+			}
 			if app.Status != domain.StatusPublicity {
 				return ErrInvalidTransition
 			}
@@ -342,6 +362,21 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			app.UpdatedAt = now
 			return tx.Save(&app).Error
 		case "appeal":
+			// 申诉只能由申请人本人发起
+			if user.Role != domain.RoleStudent || user.StudentID != app.StudentID {
+				return ErrForbidden
+			}
+			switch app.Status {
+			case domain.StatusRejected:
+				// 被驳回 → 可申诉
+			case domain.StatusPublicity, domain.StatusApproved:
+				// 分数被改动（公示中或已通过）→ 可申诉
+				if app.Score == app.ClaimedScore {
+					return ErrInvalidTransition
+				}
+			default:
+				return ErrInvalidTransition
+			}
 			reason, err := RequireReason(req.Reason, "appeal reason is required")
 			if err != nil {
 				return err
@@ -401,7 +436,19 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 	return app, err
 }
 
-func (s *Service) ListObjections(applicationID string) ([]domain.Objection, error) {
+// ListObjections 返回某个申请的异议列表。
+// 可见范围：student/reviewer 限本班申请；admin 限管辖班级申请。越权一律 NotFound，避免探测。
+func (s *Service) ListObjections(user domain.User, applicationID string) ([]domain.Objection, error) {
+	var app domain.Application
+	if err := s.db.First(&app, "id = ?", applicationID).Error; err != nil {
+		if IsNotFound(err) {
+			return []domain.Objection{}, nil
+		}
+		return nil, err
+	}
+	if !s.canAccessClass(user, app.ClassName) {
+		return []domain.Objection{}, ErrForbidden
+	}
 	var list []domain.Objection
 	err := s.db.Where("application_id = ?", applicationID).Order("created_at DESC").Find(&list).Error
 	return list, err
@@ -411,6 +458,10 @@ func (s *Service) ensureApplicationActor(user domain.User, app domain.Applicatio
 	switch action {
 	case "review-pass", "review-reject", "mark-special", "publicity-finish":
 		if user.Role == domain.RoleAdmin {
+			// 系统管理员可跨班操作；辅导员只能操作管辖班级的申请
+			if !IsSuperAdmin(user) && !classesContain(user.ManagedClasses, app.ClassName) {
+				return ErrForbidden
+			}
 			return nil
 		}
 		if user.Role != domain.RoleReviewer {
@@ -426,6 +477,10 @@ func (s *Service) ensureApplicationActor(user domain.User, app domain.Applicatio
 		return nil // 权限在 ApplicationAction 中自行判断
 	case "admin-pass", "admin-reject", "appeal-approve", "appeal-reject":
 		if user.Role != domain.RoleAdmin {
+			return ErrForbidden
+		}
+		// 系统管理员可跨班处理；辅导员只能处理管辖班级的申请
+		if !IsSuperAdmin(user) && !classesContain(user.ManagedClasses, app.ClassName) {
 			return ErrForbidden
 		}
 		return nil

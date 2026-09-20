@@ -49,6 +49,7 @@ func NewRouter(cfg config.Config, svc *service.Service) *gin.Engine {
 	auth.GET("/admin/users", server.requireRole("admin"), server.listUsers)
 	auth.POST("/admin/users/import", server.requireRole("admin"), server.importUsers)
 	auth.PATCH("/admin/users/:id/role", server.requireRole("admin"), server.updateUserRole)
+	auth.PATCH("/admin/users/:id/classes", server.requireRole("admin"), server.updateUserClasses)
 	auth.GET("/admin/export/scores.csv", server.requireRole("admin"), server.exportScores)
 	auth.GET("/admin/logs", server.requireRole("admin"), server.logs)
 

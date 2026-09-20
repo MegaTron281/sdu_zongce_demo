@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS managed_classes JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE users ALTER COLUMN managed_classes DROP NOT NULL;
