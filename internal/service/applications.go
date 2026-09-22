@@ -115,27 +115,19 @@ func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCrea
 		if cycle.SummaryPhase {
 			return ErrSummaryPhaseLocked
 		}
-		var activity domain.Activity
-		activityID := strings.TrimSpace(req.ActivityID)
-		if activityID != "" {
-			var duplicate int64
-			if err := tx.Model(&domain.Application{}).
-				Where("student_id = ? AND activity_id = ? AND cycle_id = ? AND status <> ?", user.StudentID, activityID, cycle.ID, domain.StatusRejected).
-				Count(&duplicate).Error; err != nil {
-				return err
-			}
-			if duplicate > 0 {
-				return ErrDuplicateApply
-			}
-			if err := tx.First(&activity, "id = ?", activityID).Error; err != nil {
-				return err
-			}
-		} else {
-			var err error
-			activity, err = s.createActivityFromApplicationLocked(tx, user, req, cycle.ID)
-			if err != nil {
-				return err
-			}
+		activity, activityID, err := s.resolveApplicationActivity(tx, user, req, cycle.ID)
+		if err != nil {
+			return err
+		}
+		// 同一学生在同一周期内对同一活动只能有一条未驳回的申请
+		var duplicate int64
+		if err := tx.Model(&domain.Application{}).
+			Where("student_id = ? AND activity_id = ? AND cycle_id = ? AND status <> ?", user.StudentID, activityID, cycle.ID, domain.StatusRejected).
+			Count(&duplicate).Error; err != nil {
+			return err
+		}
+		if duplicate > 0 {
+			return ErrDuplicateApply
 		}
 		now := s.now()
 		app = domain.Application{
@@ -164,6 +156,42 @@ func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCrea
 		return s.AddLog(tx, user, "提交申请", app.Activity, "进入班委初审")
 	})
 	return app, err
+}
+
+// resolveApplicationActivity 决定一条申请应当挂在哪个活动上：
+//  1. 请求带 activityId（学生从活动名录里选的活动）→ 直接复用该活动，绝不新建；
+//  2. 未带 activityId 时，先按活动名在名录里查同名且未驳回的活动，命中则复用；
+//  3. 名录里确实没有同名活动，才按学生自填信息新建一个「待审核上架」活动。
+//
+// 这样可避免「学生选了已有活动去申报 → 后端又造出一个同名活动 → 导员上架后名录出现重复」。
+func (s *Service) resolveApplicationActivity(tx *gorm.DB, user domain.User, req domain.ApplicationCreateRequest, cycleID string) (domain.Activity, string, error) {
+	activityID := strings.TrimSpace(req.ActivityID)
+	if activityID != "" {
+		var activity domain.Activity
+		if err := tx.First(&activity, "id = ?", activityID).Error; err != nil {
+			return domain.Activity{}, "", err
+		}
+		return activity, activity.ID, nil
+	}
+
+	name := strings.TrimSpace(req.ActivityName)
+	if name != "" {
+		var existing domain.Activity
+		err := tx.Where("name = ? AND status <> ?", name, domain.ActivityStatusReject).
+			Order("created_at ASC").First(&existing).Error
+		if err == nil {
+			return existing, existing.ID, nil
+		}
+		if !IsNotFound(err) {
+			return domain.Activity{}, "", err
+		}
+	}
+
+	activity, err := s.createActivityFromApplicationLocked(tx, user, req, cycleID)
+	if err != nil {
+		return domain.Activity{}, "", err
+	}
+	return activity, activity.ID, nil
 }
 
 func (s *Service) createActivityFromApplicationLocked(tx *gorm.DB, user domain.User, req domain.ApplicationCreateRequest, cycleID string) (domain.Activity, error) {

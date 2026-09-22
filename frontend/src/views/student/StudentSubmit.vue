@@ -14,6 +14,8 @@ const uploading = ref(false);
 const submitting = ref(false);
 const uploadError = ref("");
 const submitError = ref("");
+// 从「活动广场」进入时带入的活动 id；为空表示学生自填活动信息（补录）
+const selectedActivityId = ref("");
 
 const draft = reactive({
   activityName: "",
@@ -36,6 +38,7 @@ onMounted(async () => {
   const activityId = String(route.query.activityId || "");
   const activity = workspace.activities.find((item) => item.id === activityId);
   if (activity) {
+    selectedActivityId.value = activity.id;
     draft.activityName = activity.name;
     draft.organizer = activity.organizer;
     draft.level = activity.level;
@@ -48,6 +51,9 @@ onMounted(async () => {
 });
 
 const locked = computed(() => Boolean(auth.meta?.summaryPhase));
+// 申报的是名录中已有活动：活动信息锁定，提交时回传 activityId，后端据此复用该活动而非新建
+const fromCatalog = computed(() => Boolean(selectedActivityId.value));
+const fieldsLocked = computed(() => locked.value || fromCatalog.value);
 const canSubmit = computed(() => Boolean(draft.activityName.trim() && draft.level && draft.category && !locked.value && !uploading.value && !submitting.value));
 
 function materialList(value: string) {
@@ -96,6 +102,7 @@ async function submitApplication() {
   submitting.value = true;
   try {
     await api.createApplication({
+      activityId: selectedActivityId.value || undefined,
       activityName: draft.activityName,
       organizer: draft.organizer,
       level: draft.level,
@@ -124,19 +131,25 @@ async function submitApplication() {
 <template>
   <div class="split-panel">
     <div>
-      <p class="section-label">学生自填活动信息并申报</p>
+      <p class="section-label">{{ fromCatalog ? "申报活动（活动信息取自活动名录）" : "学生自填活动信息并申报" }}</p>
+      <p v-if="fromCatalog" class="feedback">
+        你正在申报活动名录中已有的活动「{{ draft.activityName }}」，活动信息已锁定；只需填写获奖情况与申报分数。
+      </p>
+      <p v-else class="feedback">
+        活动名录中没有你要申报的活动？可直接在此自填活动信息申报，提交后由辅导员审核上架（不会重复建活动）。
+      </p>
       <form class="form-grid" @submit.prevent="submitApplication">
         <div class="field full">
           <label>活动名称</label>
-          <input v-model="draft.activityName" class="input" placeholder="例如：山大杯篮球比赛" :disabled="locked" required />
+          <input v-model="draft.activityName" class="input" placeholder="例如：山大杯篮球比赛" :disabled="fieldsLocked" required />
         </div>
         <div class="field">
           <label>主办方</label>
-          <input v-model="draft.organizer" class="input" placeholder="例如：体育学院" :disabled="locked" />
+          <input v-model="draft.organizer" class="input" placeholder="例如：体育学院" :disabled="fieldsLocked" />
         </div>
         <div class="field">
           <label>活动级别</label>
-          <select v-model="draft.level" class="select" :disabled="locked">
+          <select v-model="draft.level" class="select" :disabled="fieldsLocked">
             <option>国家级</option>
             <option>省级</option>
             <option>校级</option>
@@ -145,7 +158,7 @@ async function submitApplication() {
         </div>
         <div class="field">
           <label>综测类别</label>
-          <select v-model="draft.category" class="select" :disabled="locked">
+          <select v-model="draft.category" class="select" :disabled="fieldsLocked">
             <option>身心素养</option>
             <option>文艺素养</option>
             <option>劳动素养</option>
@@ -154,15 +167,15 @@ async function submitApplication() {
         </div>
         <div class="field">
           <label>活动日期 / 截止日期</label>
-          <input v-model="draft.deadline" class="input" type="date" :disabled="locked" />
+          <input v-model="draft.deadline" class="input" type="date" :disabled="fieldsLocked" />
         </div>
         <div class="field full">
           <label>官方来源 / 公示链接</label>
-          <input v-model="draft.source" class="input" placeholder="官网通知、公众号推文或成绩册链接" :disabled="locked" />
+          <input v-model="draft.source" class="input" placeholder="官网通知、公众号推文或成绩册链接" :disabled="fieldsLocked" />
         </div>
         <div class="field full">
           <label>计分依据说明</label>
-          <textarea v-model="draft.rule" class="textarea" placeholder="说明活动性质、获奖/参与情况、对应综测条款" :disabled="locked"></textarea>
+          <textarea v-model="draft.rule" class="textarea" placeholder="说明活动性质、获奖/参与情况、对应综测条款" :disabled="fieldsLocked"></textarea>
         </div>
         <div class="field">
           <label>获奖等级</label>

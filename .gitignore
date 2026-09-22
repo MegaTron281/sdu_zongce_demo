@@ -10,8 +10,8 @@ uploads/
 .DS_Store
 
 # 本地测试临时文件（curl cookie jar / 临时验证脚本）
-cj.txt
-cj2.txt
-cjs.txt
+cj*.txt
 smoke_test.mjs
-verify.mjs
+verify*.mjs
+verify_*.json
+verify_out.txt

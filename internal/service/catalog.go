@@ -75,6 +75,20 @@ func (s *Service) CreateActivity(user domain.User, activity domain.Activity) (do
 	if user.Role != domain.RoleStudent && user.Role != domain.RoleAdmin {
 		return domain.ActivityWithCount{}, ErrForbidden
 	}
+	name := strings.TrimSpace(activity.Name)
+	if name == "" {
+		return domain.ActivityWithCount{}, fmt.Errorf("活动名称不能为空")
+	}
+	// 名录里不允许出现同名活动：重复条目对学生和审核都没有意义
+	var sameName int64
+	if err := s.db.Model(&domain.Activity{}).Where("name = ?", name).Count(&sameName).Error; err != nil {
+		return domain.ActivityWithCount{}, err
+	}
+	if sameName > 0 {
+		return domain.ActivityWithCount{}, fmt.Errorf("活动名录中已存在同名活动「%s」，请勿重复创建", name)
+	}
+	activity.Name = name
+
 	now := s.now()
 	if activity.ID == "" {
 		activity.ID = NewID("act")
