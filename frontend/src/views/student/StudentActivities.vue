@@ -3,7 +3,7 @@ import { computed, onMounted, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { daysUntil } from "@/api/format";
 import StatusTag from "@/components/StatusTag.vue";
-import { ActivityStatus } from "@/constants/status";
+import { ActivityStatus, ApplicationStatus } from "@/constants/status";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -30,6 +30,25 @@ const activities = computed(() =>
 function apply(id: string) {
   router.push({ name: "student.submit", query: { activityId: id } });
 }
+
+// 学生对每个活动「未驳回」的申报状态：用于标记「已申报」并阻止重复申报（与后端 dedup 规则一致）
+const activeByActivity = computed(() => {
+  const map = new Map<string, string>();
+  for (const app of workspace.applications) {
+    if (app.status === ApplicationStatus.Rejected) continue;
+    if (!map.has(app.activityId)) map.set(app.activityId, app.status);
+  }
+  return map;
+});
+
+// 曾被驳回过的活动：允许「重新申报」
+const rejectedActivities = computed(() => {
+  const set = new Set<string>();
+  for (const app of workspace.applications) {
+    if (app.status === ApplicationStatus.Rejected) set.add(app.activityId);
+  }
+  return set;
+});
 </script>
 
 <template>
@@ -66,12 +85,21 @@ function apply(id: string) {
       <div class="meta">
         <span>{{ item.level }}</span>
         <span>{{ item.category }}</span>
-        <span>已申报 {{ item.applications }}</span>
+        <span>全校已申报 {{ item.applications }}</span>
+        <span v-if="activeByActivity.get(item.id)">你已申报（{{ activeByActivity.get(item.id) }}）</span>
       </div>
       <p>{{ item.rule }}</p>
       <div class="button-row">
-        <button class="primary" :disabled="auth.meta?.summaryPhase || item.status !== '已上架'" @click="apply(item.id)">
-          申报
+        <button v-if="activeByActivity.has(item.id)" class="primary" disabled title="你已申报该活动，同一活动无需重复申报">
+          已申报
+        </button>
+        <button
+          v-else
+          class="primary"
+          :disabled="auth.meta?.summaryPhase || item.status !== '已上架'"
+          @click="apply(item.id)"
+        >
+          {{ rejectedActivities.has(item.id) ? "重新申报" : "申报" }}
         </button>
         <span class="tag" :class="{ red: daysUntil(item.deadline) <= 3 }">截止 {{ item.deadline || "待定" }}</span>
       </div>

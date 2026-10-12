@@ -12,14 +12,14 @@ import (
 )
 
 var (
-	ErrUnauthorized       = errors.New("unauthorized")
-	ErrForbidden          = errors.New("forbidden")
+	ErrUnauthorized       = errors.New("登录状态已失效，请重新登录")
+	ErrForbidden          = errors.New("没有权限执行该操作")
 	ErrAccountNotFound    = errors.New("该账号不存在")
 	ErrRoleMismatch       = errors.New("该账号与所选登录身份不符")
-	ErrDuplicateApply     = errors.New("duplicate active application")
-	ErrSummaryPhaseLocked = errors.New("summary phase is locked for new applications")
-	ErrInvalidTransition  = errors.New("invalid status transition")
-	ErrReasonRequired     = errors.New("reason is required")
+	ErrDuplicateApply     = errors.New("该活动已有未驳回的申请，请勿重复申报")
+	ErrSummaryPhaseLocked = errors.New("当前处于汇总期，已停止受理新的申报")
+	ErrInvalidTransition  = errors.New("当前状态不允许该操作，请刷新页面后重试")
+	ErrReasonRequired     = errors.New("请填写原因说明")
 	ErrWrongPassword      = errors.New("密码错误")
 )
 

@@ -99,12 +99,29 @@ func (s *Service) Publicity(user domain.User) ([]domain.Application, error) {
 	return apps, err
 }
 
+// DuplicateApplyError 携带「已存在申请」的活动名与状态，便于给用户可读的中文提示。
+// Unwrap 回 ErrDuplicateApply，保证 httpapi 中间件仍将其映射为 409 Conflict。
+type DuplicateApplyError struct {
+	Activity string
+	Status   string
+}
+
+func (e DuplicateApplyError) Error() string {
+	return fmt.Sprintf("你已就活动「%s」提交过申请（当前状态：%s），同一活动无需重复申报；如需重新申报，请等待本次审核结果，或让班委驳回后再试。", e.Activity, e.Status)
+}
+
+func (e DuplicateApplyError) Unwrap() error { return ErrDuplicateApply }
+
 func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCreateRequest) (domain.Application, error) {
 	if user.Role != domain.RoleStudent {
 		return domain.Application{}, ErrForbidden
 	}
 	if req.Rank < 1 {
 		req.Rank = 1
+	}
+	// materials 列为 NOT NULL：客户端未提供（nil）时兜底为空数组，避免向该列写入 NULL 触发约束错误
+	if req.Materials == nil {
+		req.Materials = []string{}
 	}
 	var app domain.Application
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -120,14 +137,15 @@ func (s *Service) CreateApplication(user domain.User, req domain.ApplicationCrea
 			return err
 		}
 		// 同一学生在同一周期内对同一活动只能有一条未驳回的申请
-		var duplicate int64
-		if err := tx.Model(&domain.Application{}).
-			Where("student_id = ? AND activity_id = ? AND cycle_id = ? AND status <> ?", user.StudentID, activityID, cycle.ID, domain.StatusRejected).
-			Count(&duplicate).Error; err != nil {
-			return err
+		var existing domain.Application
+		err = tx.Where("student_id = ? AND activity_id = ? AND cycle_id = ? AND status <> ?",
+			user.StudentID, activityID, cycle.ID, domain.StatusRejected).
+			Order("created_at DESC").First(&existing).Error
+		if err == nil {
+			return DuplicateApplyError{Activity: existing.Activity, Status: existing.Status}
 		}
-		if duplicate > 0 {
-			return ErrDuplicateApply
+		if !IsNotFound(err) {
+			return err
 		}
 		now := s.now()
 		app = domain.Application{
@@ -199,17 +217,18 @@ func (s *Service) createActivityFromApplicationLocked(tx *gorm.DB, user domain.U
 	level := strings.TrimSpace(req.Level)
 	category := strings.TrimSpace(req.Category)
 	if name == "" || level == "" || category == "" {
-		return domain.Activity{}, errors.New("activity name, level and category are required")
+		return domain.Activity{}, errors.New("活动名称、活动级别与综测类别为必填项")
 	}
 
-	var duplicate int64
-	if err := tx.Model(&domain.Application{}).
-		Where("student_id = ? AND cycle_id = ? AND activity = ? AND status <> ?", user.StudentID, cycleID, name, domain.StatusRejected).
-		Count(&duplicate).Error; err != nil {
-		return domain.Activity{}, err
+	var existing domain.Application
+	err := tx.Where("student_id = ? AND cycle_id = ? AND activity = ? AND status <> ?",
+		user.StudentID, cycleID, name, domain.StatusRejected).
+		Order("created_at DESC").First(&existing).Error
+	if err == nil {
+		return domain.Activity{}, DuplicateApplyError{Activity: existing.Activity, Status: existing.Status}
 	}
-	if duplicate > 0 {
-		return domain.Activity{}, ErrDuplicateApply
+	if !IsNotFound(err) {
+		return domain.Activity{}, err
 	}
 
 	now := s.now()
@@ -271,7 +290,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if app.Status != domain.StatusPendingReviewer {
 				return ErrInvalidTransition
 			}
-			reason, err := RequireReason(req.Reason, "reject reason is required")
+			reason, err := RequireReason(req.Reason, "驳回原因不能为空")
 			if err != nil {
 				return err
 			}
@@ -284,7 +303,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if app.Status != domain.StatusPendingReviewer {
 				return ErrInvalidTransition
 			}
-			reason, err := RequireReason(req.Reason, "special reason is required")
+			reason, err := RequireReason(req.Reason, "特殊情况说明不能为空")
 			if err != nil {
 				return err
 			}
@@ -325,7 +344,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 				return ErrInvalidTransition
 			}
 			if req.Score != nil {
-				reason, err := RequireReason(req.Reason, "manual score reason is required")
+				reason, err := RequireReason(req.Reason, "修改分数需填写原因")
 				if err != nil {
 					return err
 				}
@@ -345,7 +364,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if app.Status != domain.StatusPendingAdmin && app.Status != domain.StatusSpecial {
 				return ErrInvalidTransition
 			}
-			reason, err := RequireReason(req.Reason, "reject reason is required")
+			reason, err := RequireReason(req.Reason, "驳回原因不能为空")
 			if err != nil {
 				return err
 			}
@@ -368,7 +387,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if app.Status != domain.StatusPublicity {
 				return ErrInvalidTransition
 			}
-			reason, err := RequireReason(req.Reason, "objection reason is required")
+			reason, err := RequireReason(req.Reason, "异议理由不能为空")
 			if err != nil {
 				return err
 			}
@@ -405,7 +424,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			default:
 				return ErrInvalidTransition
 			}
-			reason, err := RequireReason(req.Reason, "appeal reason is required")
+			reason, err := RequireReason(req.Reason, "申诉理由不能为空")
 			if err != nil {
 				return err
 			}
@@ -440,7 +459,7 @@ func (s *Service) ApplicationAction(user domain.User, id, action string, req dom
 			if app.Status != domain.StatusAppealing {
 				return ErrInvalidTransition
 			}
-			reason, err := RequireReason(req.Reason, "reject reason is required")
+			reason, err := RequireReason(req.Reason, "驳回原因不能为空")
 			if err != nil {
 				return err
 			}

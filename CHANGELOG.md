@@ -383,3 +383,37 @@
 - 学生可随时**撤回**「待班委审核」状态的申请
 - 公示期间可对**他人**申请提异议
 - 申诉采纳后重新进入公示
+
+---
+
+## 2026-10-12 修复：普通学生从活动广场申报报错（重复申报 + 材料空值 NULL）
+
+---
+
+### 一、问题
+
+| 现象 | 根因 |
+|------|------|
+| 普通学生从「活动广场」点击某活动「申报」后弹错，无法提交 | 两处缺陷叠加：① 后端对"同一学生 + 同一活动 + 同一周期 + 未驳回"的申报返回 `ErrDuplicateApply` 哨兵错误，但响应体里是其**英文原文** `duplicate active application`；② 前端活动广场对每个活动**没有"已申报"状态**，于是学生即便已经申报过，按钮仍显示"申报"，再次点击就撞上 409 报错 |
+| 申报时不带 `materials` 字段也会报错 `400 ... null value in column "materials" of relation "applications" violates not-null constraint` | `materials` 列定义为 `JSONB NOT NULL DEFAULT '[]'::jsonb`；Gin 绑定空切片为 `nil`，写入 `NULL` 触发非空约束 |
+
+### 二、变更
+
+| 位置 | 说明 |
+|------|------|
+| `internal/service/applications.go` | 新增 `DuplicateApplyError`（携带活动名与当前状态，`Unwrap()` 仍指向 `ErrDuplicateApply`，保证中间件继续映射为 409）；`CreateApplication` / `createActivityFromApplicationLocked` 把原来的 `Count` 去重改为 `First` 取已存在的记录，返回**中文**可读提示；新增 `if req.Materials == nil { req.Materials = []string{} }` 兜底，避免写入 `NULL` 触发非空约束 |
+| `internal/service/auth.go` | 将与前端交互的全部后端错误哨兵本地化为中文（`ErrUnauthorized`/`ErrForbidden`/`ErrDuplicateApply`/`ErrSummaryPhaseLocked`/`ErrInvalidTransition`/`ErrReasonRequired` 等），消除英文泄漏 |
+| `frontend/src/views/student/StudentActivities.vue` | 新增 `activeByActivity`（按活动聚合未驳回申报状态）与 `rejectedActivities`（曾被驳回可"重新申报"）计算属性；已申报活动按钮置灰为"已申报"并提示"你已申报（状态）"，被驳回过的活动按钮改为"重新申报"；与后端去重规则保持一致 |
+
+### 三、验证（端到端，24/24 通过）
+
+- 学生不带 `materials` 申报 → `201`（not-null bug 已修复）
+- 重复申报同一活动 → `409`，提示为**中文**：「你已就活动「排球山大杯」提交过申请（当前状态：待班委审核），同一活动无需重复申报…」（无英文 `duplicate active application`）
+- 带材料申报 → `201`
+- 权限隔离：学生查他人成绩 `403`、学生执行管理员动作 `403`、跨班提异议 `403`、未登录 `401`
+- 审核生命周期：班委初审通过 → 公示中；公示不足 1h 手动结束被守卫拦截 `400`；对已公示申请重复初审 `409` 非法流转
+- 完整生命周期到「已通过」+ 成绩聚合：`round((学业分×0.9+素质分×0.1)×10)/10`，李明样例由 `77.8` → `79.0`（素质分 +12）计算正确
+- 申诉路径：已驳回 → 申诉中 → 驳回申诉回到已驳回
+- 材料上传（multipart）学生 `201`；`vue-tsc --noEmit` + `vite build` 通过；`npm run dev` 在保留端口段自动选用 `5322` 并代理 `/api` 到后端返回 200
+
+> 注：端到端检测前已重置演示库（`migrate down → up → seed`）以保证结果可复现；测试账号默认密码 `123456`。
