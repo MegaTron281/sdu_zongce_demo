@@ -1,5 +1,30 @@
 # 更新日志
 
+## 2026-10-12 修复：前端 `npm run dev` 启动报 `EACCES: permission denied 0.0.0.0:5173`
+
+---
+
+### 一、问题
+
+| 现象 | 根因 |
+|------|------|
+| 运行 `npm run dev` 直接崩溃：`Error: listen EACCES: permission denied 0.0.0.0:5173` | 旧 `dev` 脚本为 `vite --host 0.0.0.0`（通配绑定）。在 Windows 上端口 5173 落在系统保留/排除段（Hyper-V / WSL / WinNAT，`netsh int ipv4 show excludedportrange tcp` 可见 `5122–5221` 等），通配绑定命中保留段被系统拒绝。且 Vite 只在 `EADDRINUSE`（端口被占用）时自动顺延端口，**不会**从 `EACCES`（端口被系统保留）恢复，因此首端口即崩溃 |
+
+### 二、变更
+
+| 位置 | 说明 |
+|------|------|
+| `frontend/package.json` | `dev` 脚本由 `vite --host 0.0.0.0` 改回 `vite`（默认仅绑定回环 `localhost`） |
+| `frontend/vite.config.ts` | 新增 `findAvailablePort()`：启动时主动探测可用端口，**同时跳过 `EACCES`（保留段）与 `EADDRINUSE`（已被占用）**，彻底规避保留段导致的崩溃；`server.host` 默认 `localhost`，`strictPort: true` 使用探测到的端口；通过 `npm run dev -- --host` 仍可按需开放局域网访问（该场景探测改用 `0.0.0.0`） |
+| `frontend/package.json` / `package-lock.json` | 新增开发依赖 `@types/node`（config 用到 `node:net` 类型，保证 `vue-tsc` 通过） |
+
+### 三、验证
+
+- 本机（端口 5173 处于保留段）启动成功，自动选用首个可用端口 `5322`，`GET /` 返回 200（SPA 外壳），`/api/health` 代理返回 200，后端存活。
+- `vue-tsc --noEmit` 类型检查通过。
+
+---
+
 ## 2026-10-12 修复：同一浏览器多账号并行登录（后登录顶掉先登录）
 
 ---
