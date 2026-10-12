@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"demo1/internal/domain"
 	"demo1/internal/service"
@@ -13,15 +14,34 @@ import (
 
 const userContextKey = "authUser"
 
+// bearerToken 从 Authorization: Bearer <token> 头中取出会话令牌。
+// 浏览器对每个同源请求只会自动携带一个 sdu_session cookie，多个标签页共用同一份
+// cookie 会导致"后登录的账号顶掉先登录的账号"。改用 Bearer 头后，每个标签页可
+// 在 sessionStorage 中保存各自独立的令牌，从而实现同一浏览器内的并行多账号操作。
+func bearerToken(c *gin.Context) string {
+	h := c.GetHeader("Authorization")
+	const prefix = "Bearer "
+	if len(h) > len(prefix) && strings.HasPrefix(h, prefix) {
+		return strings.TrimSpace(h[len(prefix):])
+	}
+	return ""
+}
+
 func (s *Server) authRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		cookie, err := c.Cookie(service.SessionCookieName)
-		if err != nil {
+		// 优先使用 Bearer 头（标签页级独立令牌），其次回退到 cookie（兼容单账号场景）
+		token := bearerToken(c)
+		if token == "" {
+			if ck, err := c.Cookie(service.SessionCookieName); err == nil {
+				token = ck
+			}
+		}
+		if token == "" {
 			writeError(c, service.ErrUnauthorized)
 			c.Abort()
 			return
 		}
-		user, err := s.svc.AuthenticateToken(cookie)
+		user, err := s.svc.AuthenticateToken(token)
 		if err != nil {
 			writeError(c, err)
 			c.Abort()

@@ -1,5 +1,38 @@
 # 更新日志
 
+## 2026-10-12 修复：同一浏览器多账号并行登录（后登录顶掉先登录）
+
+---
+
+### 一、问题
+
+| 现象 | 根因 |
+|------|------|
+| 在一个浏览器里先登录账号 A，再登录账号 B，A 就"掉线"，只能使用最新的 B | 后端每次登录都会**新建一条 session 记录且不会吊销旧 session**（服务端其实早已支持并发会话）；"掉线"纯粹是因为浏览器对每个同源请求只自动携带**一个同名 cookie**（`sdu_session`），B 登录后该 cookie 被覆盖为 B 的令牌，所有标签页都改发 B 的令牌，A 标签页也随之变成 B |
+
+### 二、变更
+
+| 位置 | 说明 |
+|------|------|
+| `internal/httpapi/middleware.go` | `authRequired` 优先读取 `Authorization: Bearer <token>` 请求头，其次回退到 cookie；新增 `bearerToken` 辅助函数提取令牌 |
+| `internal/httpapi/handlers.go` | 登录接口在响应体里额外返回 `token`；退出接口优先用 Bearer 头里的令牌（按标签页精确吊销） |
+| `internal/domain/dto.go` | `LoginResponse` 增加 `Token` 字段 |
+| `frontend/src/api/client.ts` | 新增 `setSessionToken` / `getSessionToken`；每个请求自动附带本标签页独立保存的 `Authorization: Bearer` 头；`login` 返回 `token` |
+| `frontend/src/stores/auth.ts` | 登录成功把令牌存入 `sessionStorage`（**按标签页隔离**，关闭标签页即失效），登出时清除 |
+
+### 三、效果与用法
+
+- 现在可在**同一浏览器的不同标签页 / 窗口**分别登录不同账号（学生 / 班委 / 辅导员 / 超管），各自保持独立登录态，互不顶替，方便走完整流程（申报 → 初审 → 公示 → 复审）。
+- 单账号场景完全兼容：未携带 Bearer 头时仍走 cookie，刷新页面、新开空白标签页等行为不变。
+- 权衡：`sessionStorage` 中的令牌是 JS 可读的（不像 HttpOnly cookie 那样防 XSS 读取），本原型可接受；若日后渲染不可信内容，建议配合 CSP 与令牌短期过期。
+
+### 四、验证
+
+- `go build ./...`、`go vet ./...`、`vue-tsc --noEmit` 全部通过。
+- 真实接口并行验证（需先启动 Docker/Postgres 与前后端）：用 Bearer 头分别携带 A、B 两个令牌请求 `/api/auth/me`，均返回各自账号，证明并行会话互不干扰。
+
+---
+
 ## 2026-09-22 修复：学生申报会重复生成同名活动
 
 ---

@@ -24,7 +24,7 @@ Vue 开发地址：`http://localhost:5173`，Vite 会把 `/api` 代理到 Gin �
 ## 核心接口
 
 - `GET /api/health`：健康检查
-- `POST /api/auth/login`：账号密码登录，写入 HTTP-only session cookie
+- `POST /api/auth/login`：账号密码登录，写入 HTTP-only session cookie，并在响应体返回 `token`。前端可把 `token` 存入 `sessionStorage` 并以 `Authorization: Bearer <token>` 头随后续请求发送，从而支持**同一浏览器多标签页并行登录不同账号、互不顶替**（详见下方"并行多账号"说明）
 - `GET /api/auth/me`：获取当前登录用户
 - `POST /api/auth/logout`：退出登录并撤销 session
 - `GET /api/meta`：获取综测周期状态、状态枚举和当前规则摘要
@@ -56,7 +56,23 @@ Vue 开发地址：`http://localhost:5173`，Vite 会把 `/api` 代理到 Gin �
 - `GET /api/admin/export/scores.csv`：导出成绩册 CSV（系统管理员全校，辅导员仅管辖班级）
 - `GET /api/admin/logs`：操作日志
 
-除 `GET /api/health` 和 `POST /api/auth/login` 外，接口均需要 session cookie。角色权限由服务端校验：student 只能操作本人，reviewer 只能审核本班，admin 只能操作管辖班级；`admin` 角色中带 `isSuperAdmin` 标志的账号为**系统管理员**，不受管辖班级限制（可见/可操作全校数据），且是唯一能分配管辖班级、任命辅导员的身份。
+除 `GET /api/health` 和 `POST /api/auth/login` 外，接口均需要登录态。登录态可通过 **session cookie** 或 **`Authorization: Bearer <token>` 请求头**提供，二者任一有效（Bearer 头优先，用于同一浏览器多标签页并行登录）。角色权限由服务端校验：student 只能操作本人，reviewer 只能审核本班，admin 只能操作管辖班级；`admin` 角色中带 `isSuperAdmin` 标志的账号为**系统管理员**，不受管辖班级限制（可见/可操作全校数据），且是唯一能分配管辖班级、任命辅导员的身份。
+
+### 并行多账号（同一浏览器多标签页）
+
+浏览器对每个同源请求只自动携带**一个** `sdu_session` cookie，因此同一窗口内先后登录两个账号会导致 cookie 被覆盖、先登录的账号"掉线"。解决方式：登录后把响应里的 `token` 存入 `sessionStorage`，之后每个请求通过 `Authorization: Bearer <token>` 头携带本标签页独立的令牌。这样：
+
+- 标签页 1 登录学生、标签页 2 登录辅导员，两个标签页各自保持独立登录态，可并行走完整流程；
+- 新开空白标签页 / 未存令牌时仍回退到 cookie（单账号体验不变）；
+- `sessionStorage` 按标签页隔离、关闭即失效，不会像 `localStorage` 那样在多标签页间共享。
+
+```bash
+# 登录账号 A，拿到 token 后通过 Bearer 头调用（并行于账号 B 互不干扰）
+TOKEN_A=$(curl -s -X POST http://localhost:8090/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"role":"student","account":"202300271018","password":"123456"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+curl -s http://localhost:8090/api/auth/me -H "Authorization: Bearer $TOKEN_A"
+```
 
 活动截止时间（`deadline`）仅表示活动本身的举办/报名截止，**不限制综测加分申报**——学生随时可对已上架活动提交综测申报，受控的只有汇总期锁（`summaryPhase`）。
 

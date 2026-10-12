@@ -20,11 +20,33 @@ export class ApiError extends Error {
   }
 }
 
+// 每个标签页独立的会话令牌：存于 sessionStorage（随标签页关闭失效，不会像
+// localStorage 那样在同源多标签页间共享），配合后端的 Authorization: Bearer
+// 头，使得同一浏览器内多个标签页可各自保持不同账号的登录态，互不顶替。
+const TOKEN_KEY = "sdu_token";
+
+export function setSessionToken(token: string | null) {
+  if (token) {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } else {
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function getSessionToken(): string | null {
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+
 type ApiOptions = Omit<RequestInit, "body"> & { body?: unknown };
 
 async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
+  // 携带本标签页独立保存的会话令牌（并行多账号操作的关键）
+  const token = getSessionToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
   let body = options.body;
   if (body !== undefined && typeof body !== "string" && !(body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -47,7 +69,7 @@ async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {
 
 export const api = {
   login(role: string, account: string, password: string) {
-    return request<{ user: AuthUser }>("/api/auth/login", {
+    return request<{ user: AuthUser; token: string }>("/api/auth/login", {
       method: "POST",
       body: { role, account, password },
     });

@@ -36,7 +36,9 @@ func (s *Server) login(c *gin.Context) {
 		return
 	}
 	http.SetCookie(c.Writer, service.SessionCookie(token, expiresAt, s.cfg.CookieSecure))
-	c.JSON(http.StatusOK, domain.LoginResponse{User: domain.ToAuthUser(user)})
+	// 同时把令牌返回给前端，前端存入 sessionStorage 并通过 Bearer 头使用，
+	// 使同一浏览器内的多个标签页可各自保持独立登录状态（并行多账号操作）。
+	c.JSON(http.StatusOK, domain.LoginResponse{User: domain.ToAuthUser(user), Token: token})
 }
 
 func (s *Server) me(c *gin.Context) {
@@ -44,7 +46,11 @@ func (s *Server) me(c *gin.Context) {
 }
 
 func (s *Server) logout(c *gin.Context) {
-	token, _ := c.Cookie(service.SessionCookieName)
+	// 优先用 Bearer 头里的令牌（标签页级），否则回退到 cookie 令牌
+	token := bearerToken(c)
+	if token == "" {
+		token, _ = c.Cookie(service.SessionCookieName)
+	}
 	if err := s.svc.Logout(token, currentUser(c)); err != nil {
 		writeError(c, err)
 		return

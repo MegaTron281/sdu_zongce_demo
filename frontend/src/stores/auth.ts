@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { api, ApiError } from "@/api/client";
+import { api, ApiError, setSessionToken } from "@/api/client";
 import type { AuthUser, MetaResponse, Role } from "@/api/types";
 
 interface AuthState {
@@ -25,7 +25,9 @@ export const useAuthStore = defineStore("auth", {
   },
   actions: {
     async login(role: Role, account: string, password: string) {
-      const { user } = await api.login(role, account, password);
+      const { user, token } = await api.login(role, account, password);
+      // 把本标签页独立的会话令牌存入 sessionStorage，使并行多账号操作互不干扰
+      setSessionToken(token);
       this.user = user;
       this.meta = await api.meta();
     },
@@ -39,6 +41,7 @@ export const useAuthStore = defineStore("auth", {
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
           this.user = null;
+          setSessionToken(null);
           return null;
         }
         throw error;
@@ -48,9 +51,13 @@ export const useAuthStore = defineStore("auth", {
       this.meta = await api.meta();
     },
     async logout() {
-      await api.logout();
-      this.user = null;
-      this.meta = null;
+      try {
+        await api.logout();
+      } finally {
+        setSessionToken(null);
+        this.user = null;
+        this.meta = null;
+      }
     },
   },
 });
