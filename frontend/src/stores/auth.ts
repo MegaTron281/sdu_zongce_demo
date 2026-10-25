@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { api, ApiError, setSessionToken } from "@/api/client";
+import { api, ApiError, setSessionToken, getSessionToken } from "@/api/client";
 import type { AuthUser, MetaResponse, Role } from "@/api/types";
 
 interface AuthState {
@@ -33,6 +33,14 @@ export const useAuthStore = defineStore("auth", {
     },
     async ensureMe() {
       if (this.user) return this.user;
+      // 页签级身份只认本页签自己的 Bearer 令牌（存于 sessionStorage）。
+      // 没有令牌时**不回退**到浏览器共享的 session cookie：否则新建的页签会直接继承
+      // "最后一次登录"的账号，表现为"登录另一个账号后原账号被顶下线"，并行多账号操作失效。
+      // 每个页签各自登录一次后即互不影响。
+      if (!getSessionToken()) {
+        this.user = null;
+        return null;
+      }
       try {
         const { user } = await api.me();
         this.user = user;

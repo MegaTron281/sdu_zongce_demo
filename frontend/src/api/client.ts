@@ -37,6 +37,34 @@ export function getSessionToken(): string | null {
   return sessionStorage.getItem(TOKEN_KEY);
 }
 
+/**
+ * 需要鉴权的二进制资源（导出成绩册、证明材料预览）下载。
+ *
+ * 这里显式带上本页签的 Bearer 令牌，并且刻意不携带 cookie（credentials: "omit"），
+ * 使身份完全由本页签令牌决定：并行多账号操作时，导出/预览只会取"当前页签这个账号"
+ * 有权限的数据，不会被浏览器里最后一次登录的账号串味。
+ */
+export async function authFetchBlob(path: string): Promise<Blob> {
+  const headers = new Headers();
+  const token = getSessionToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const response = await fetch(path, { headers, credentials: "omit" });
+  if (!response.ok) {
+    const text = await response.text();
+    let message = `加载失败：${response.status}`;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.error) message = parsed.error;
+    } catch {
+      // 非 JSON 响应（例如错误页）保持默认提示
+    }
+    throw new ApiError(message, response.status);
+  }
+  return response.blob();
+}
+
 type ApiOptions = Omit<RequestInit, "body"> & { body?: unknown };
 
 async function request<T>(path: string, options: ApiOptions = {}): Promise<T> {

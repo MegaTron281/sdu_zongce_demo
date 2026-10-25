@@ -1,5 +1,37 @@
 # 更新日志
 
+## 2026-10-25 修复：并行多账号登录失效（页签身份不再回退共享 cookie）
+
+---
+
+### 一、现象
+- 用户反馈：同时只能登录一个账号，登录另一个账号后原账号"掉线"，只能使用最新登录的账号（并行操作失效）。
+
+### 二、根因
+- 后端 `authRequired` 在 Bearer 缺失时会**回退到浏览器共享的 `sdu_session` cookie**；而该 cookie 每次登录都被覆写为"最后一次登录"的账号。
+- 于是任何**没有自己令牌的页签**（新建页签必然如此，因为 `sessionStorage` 是按页签隔离的）都会自动变成"最后一次登录"的账号 —— 表现为"登录 B 之后 A 就没了 / 只能用一个最新账号"。
+- 关键佐证：E2E 脚本是**纯 Bearer 认证**（`SESS[account]=token` + `Authorization: Bearer`），完全不依赖 cookie，却稳定 49/49 通过，说明服务端会话与 Bearer 机制本身没问题，问题出在"无令牌页签回退共享 cookie"。
+
+### 三、改动
+- `frontend/src/stores/auth.ts`（核心）：`ensureMe()` 在没有本页签令牌时**直接判定未登录并跳转登录页**，不再回退共享 cookie。每个页签各自登录一次后即完全独立。
+- `frontend/src/api/client.ts`：新增 `authFetchBlob(path)` —— 带本页签 Bearer 令牌、且 `credentials: "omit"` 的二进制拉取，使导出/预览的身份也只认当前页签。
+- `frontend/src/views/admin/DataAdmin.vue`：导出成绩册由 `<a href="/api/admin/export/scores.csv">`（靠 cookie）改为按钮 + `authFetchBlob` + blob 下载，导出结果只取当前页签账号有权限的数据。
+- `frontend/src/components/MaterialList.vue`：证明材料预览同样改为带令牌拉取后以 blob 打开，站外链接仍走普通跳转。
+
+### 四、验证（真实 Chromium 双页签，dev :5173 与 prod :9080 各一遍）
+1. 页签1 登录 A（金瑞开）→ `token=YES`，停在 `/student/activities`；
+2. **新建页签 → `token=NO`、停在 `/login`（401）** —— 不再继承上次登录的账号（本修复的关键断言）；
+3. 该页签登录 B（刘晓）→ me=刘晓；
+4. **切回页签1 → me=金瑞开**（原账号仍在，未被顶下线）；
+5. 再看页签2 → me=刘晓。
+- 回归：`vue-tsc --noEmit` 通过；`scripts_e2e_full.py` **49/49**；`scripts_verify_opts.py` **16/16**；生产构建 `frontend/dist` 已重建并同步该修复。
+
+### 五、使用方式变化（重要）
+- 现在**每个页签是独立的登录会话**：新建页签会进入登录页，需要在该页签内登录你要用的账号。这正是并行操作的前提（此前新页签会被共享 cookie 带成最后一个账号）。
+- 刷新（F5）不会掉登录（令牌存在页签级 `sessionStorage`）；关闭页签/浏览器后需重新登录。
+
+---
+
 ## 2026-10-25 修复：已登录访问 /login 仍被踢回首页（移除自动跳转）
 
 ---

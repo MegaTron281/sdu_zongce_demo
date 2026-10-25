@@ -1,11 +1,38 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { formatDateTime, formatNumber } from "@/api/format";
+import { authFetchBlob } from "@/api/client";
 import { ApplicationStatus } from "@/constants/status";
 import { useWorkspaceStore } from "@/stores/workspace";
 
 const workspace = useWorkspaceStore();
 onMounted(() => workspace.loadAdmin());
+
+// 导出成绩册：改用带本页签 Bearer 令牌的下载，避免走浏览器共享 cookie
+// （并行多账号时 cookie 会指向最后一次登录的账号，导致导出串味）
+const exporting = ref(false);
+const exportError = ref("");
+
+async function exportScores() {
+  if (exporting.value) return;
+  exporting.value = true;
+  exportError.value = "";
+  try {
+    const blob = await authFetchBlob("/api/admin/export/scores.csv");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "scores.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    exportError.value = error instanceof Error ? error.message : "导出失败，请稍后重试";
+  } finally {
+    exporting.value = false;
+  }
+}
 
 const rows = computed(() => [...workspace.scoreRows].sort((a, b) => b.assessmentScore - a.assessmentScore));
 const average = computed(() => (rows.value.length ? rows.value.reduce((sum, item) => sum + item.qualityScore, 0) / rows.value.length : 0));
@@ -35,7 +62,14 @@ const specialCount = computed(() => workspace.applications.filter((item) => item
     </table>
   </div>
   <div class="grid">
-    <div class="card"><h3>导出综测成绩册</h3><p>包含每位学生四模块分值、素质总分、学业成绩和综测成绩。</p><a class="primary link-button" href="/api/admin/export/scores.csv">导出成绩册</a></div>
+    <div class="card">
+      <h3>导出综测成绩册</h3>
+      <p>包含每位学生四模块分值、素质总分、学业成绩和综测成绩。</p>
+      <button class="primary link-button" type="button" :disabled="exporting" @click="exportScores">
+        {{ exporting ? "导出中..." : "导出成绩册" }}
+      </button>
+      <p v-if="exportError" class="feedback error">⚠ {{ exportError }}</p>
+    </div>
     <div class="card"><h3>操作日志</h3><p v-for="item in workspace.logs.slice(-5)" :key="item.id">{{ formatDateTime(item.createdAt) }} {{ item.actor }} {{ item.action }}：{{ item.target }}</p></div>
   </div>
 </template>
