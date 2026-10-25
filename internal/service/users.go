@@ -131,8 +131,10 @@ func (s *Service) ImportUsersCSV(actor domain.User, reader io.Reader) domain.Use
 	return result
 }
 
-// ChangePassword 修改当前用户密码
-func (s *Service) ChangePassword(user domain.User, oldPassword, newPassword string) error {
+// ChangePassword 修改当前用户密码。
+// currentToken 为触发改密请求的当前会话令牌：改密后会吊销该用户的其他有效会话，
+// 仅保留当前会话，避免旧 token 在密码泄露后仍可用（纵深防御）。
+func (s *Service) ChangePassword(user domain.User, oldPassword, newPassword, currentToken string) error {
 	oldPassword = Trim(oldPassword)
 	newPassword = Trim(newPassword)
 	if oldPassword == "" || newPassword == "" {
@@ -157,7 +159,17 @@ func (s *Service) ChangePassword(user domain.User, oldPassword, newPassword stri
 			Update("password_hash", hash).Error; err != nil {
 			return err
 		}
-		return s.AddLog(tx, user, "修改密码", roleLabel(user.Role), "")
+		// 吊销该用户的其他有效会话（保留当前会话），避免旧 token 仍可用。
+		now := s.now()
+		revoke := tx.Model(&domain.Session{}).
+			Where("user_id = ? AND revoked_at IS NULL", user.ID)
+		if currentToken != "" {
+			revoke = revoke.Where("token_hash <> ?", s.TokenHash(currentToken))
+		}
+		if err := revoke.Update("revoked_at", now).Error; err != nil {
+			return err
+		}
+		return s.AddLog(tx, user, "修改密码", roleLabel(user.Role), "已吊销其他登录会话")
 	})
 }
 

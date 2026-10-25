@@ -277,7 +277,14 @@ func (s *Server) changePassword(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	if err := s.svc.ChangePassword(currentUser(c), req.OldPassword, req.NewPassword); err != nil {
+	// 取当前会话令牌：改密后仅吊销该用户「其他」有效会话，保留当前会话（纵深防御）。
+	token := bearerToken(c)
+	if token == "" {
+		if ck, err := c.Cookie(service.SessionCookieName); err == nil {
+			token = ck
+		}
+	}
+	if err := s.svc.ChangePassword(currentUser(c), req.OldPassword, req.NewPassword, token); err != nil {
 		writeError(c, err)
 		return
 	}

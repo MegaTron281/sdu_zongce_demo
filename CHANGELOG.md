@@ -1,5 +1,76 @@
 # 更新日志
 
+## 2026-10-25 修复：后端端口被 Windows 排除段占用导致无法启动（8090 → 9080）
+
+---
+
+### 一、现象
+- 前端 dev 报 `[vite] http proxy error: /api/auth/me` + `ECONNREFUSED`：Vite 代理目标 `:8090` 无服务监听。
+- 根因：Windows 动态把 TCP 排除段 `8079–8178` 划给了 Hyper-V / 容器等保留范围，**覆盖 `:8090`**，导致 `go run ./cmd/server` 启动时 `bind :8090` 报 `access forbidden by its access permissions`（注意：不是端口被占用，是系统权限排除）。
+- 释放该段需管理员提权（`netsh interface ipv4 delete excludedportrange`），本环境无法提权，故改用空闲端口。
+
+### 二、改动（仅配置/文档，不改任何业务逻辑）
+- `.env`：`SERVER_ADDR=:8090` → `:9080`（`.env` 被 gitignore，属本机运行时配置）。
+- `frontend/vite.config.ts`：代理 `target` `http://localhost:8090` → `http://localhost:9080`。
+- 脚本 `scripts_e2e_full.py` / `scripts_e2e_test.py` / `scripts_verify_opts.py`：`BASE` 指向 `:9080`。
+- 文档 `AGENTS.md` / `API.md` / `CLAUDE.md` / `PROJECT_STATE.md` / `TEST_GUIDE.md` / `VERIFICATION_REPORT.md` / `start.ps1`：同步端口引用。
+- 修复 `scripts_e2e_full.py` 一处测试脚本 bug：改密码用例未把改回密码后的新令牌刷新进 `SESS`，导致后续请求旧令牌 401（与产品无关，属测试桩问题）。
+
+### 三、验证
+- `go build ./...`、`go vet ./...`、`vue-tsc --noEmit` 通过；重启后端（:9080）与前端 dev（:5173）后，`localhost:5173/api/health` 经代理返回 200，原 `ECONNREFUSED` 消失。
+- 干净库（seed → seedclasses → 清 E2E 残留）重跑：**`scripts_e2e_full.py` 49/49 通过、`scripts_verify_opts.py` 16/16 通过**，全功能复验正常。
+
+---
+
+## 2026-10-25 优化：登录态体验 / 活动名录权限统一 / 改密吊销旧会话
+
+---
+
+### 一、登录页已登录自动跳转（前端）
+- `frontend/src/router/index.ts` `beforeEach`：已登录用户访问 `/login` 默认跳转到其角色首页，消除「打开登录页却看到已登录账号」的困惑。
+- 保留切换账号能力：访问 `/login?force=1` 仍会强制显示登录框（便于并行多账号场景先退出再登录）。
+
+### 二、活动名录权限统一（后端）
+- 原 `POST /activities` 学生可建、但 `PATCH /activities/:id` 仅 admin，权限不一致。
+- 现统一为 **仅 admin（辅导员/系统管理员）可增改**：`router.go` 为 `POST /activities` 增加 `requireRole("admin")`；`catalog.go` 的 `CreateActivity` 同步改为仅 admin（`GET /activities` 活动广场查询仍对所有角色开放）。
+- 理由：活动名录为全校共享、由管理员统一维护，与既有 PATCH 规则及前端仅 `ActivityAdmin.vue`（admin 页）含新建入口一致。
+
+### 三、改密后吊销其他会话（后端，纵深防御）
+- `internal/httpapi/handlers.go` `changePassword`：从请求中取出当前会话令牌（Bearer 优先、回退 cookie）。
+- `internal/service/users.go` `ChangePassword`：改密事务内一并 `UPDATE sessions SET revoked_at = now WHERE user_id = ? AND revoked_at IS NULL AND token_hash <> 当前令牌`，即**吊销该用户其他所有有效会话、仅保留当前会话**，避免旧 token 在密码泄露后仍可用；当前会话不受影响，用户无需重新登录。
+
+### 四、验证
+- `go build ./...`、`go vet ./...`、`vue-tsc --noEmit` 均通过。
+- `scripts_verify_opts.py` 16/16 通过：学生 `POST /activities`→403、admin→201、学生 `PATCH`→403；改密后当前会话仍 200、其他会话 401、旧密码登录 400、新密码登录 200、还原后 123456 登录 200。
+
+---
+
+## 2026-10-24 修复：审计日志跨班级越权泄露（fail-closed 隔离）
+
+---
+
+### 一、问题
+
+| 现象 | 根因 |
+|------|------|
+| 辅导员（如 zhangmiao，管辖公信23/24）在「操作日志」页能看到非管辖班级学生的记录（实测可见公信2301 李明「登录系统」等全量 48 条日志） | `internal/service/catalog.go` 的 `Logs()` 仅判断 `Role != admin` 就返回 403，否则**直接返回整张 `audit_logs` 表**，未做班级过滤。这与项目「数据隔离 fail-closed」原则（成绩、申请、公示、导出均已按班级/管辖范围封死越权）自相矛盾，构成跨班级数据泄露 |
+
+### 二、变更
+
+| 位置 | 说明 |
+|------|------|
+| `migrations/007_add_audit_log_class.up.sql` | `ALTER TABLE audit_logs ADD COLUMN class_name TEXT NOT NULL DEFAULT '';` 并建立索引；`.down.sql` 反向删除 |
+| `internal/domain/models.go` | `AuditLog` 结构体新增 `ClassName string gorm:"index" json:"className"` |
+| `internal/service/service.go` | `AddLog` 写入审计记录时附带 `ClassName: actor.ClassName`，使每条新日志都带操作人所属班级标签（存量日志 class_name 为空，仅本人 actor 命中） |
+| `internal/service/catalog.go` | `Logs(user)` 改为 fail-closed：系统管理员可见全校；其他管理员只返回 `class_name IN (本人管辖班级) OR actor = 本人` 的日志；未配置管辖班级则仅见本人操作 |
+
+### 三、验证
+
+- `go build ./...`、`go vet ./...` 通过；迁移 `007` 已 `up` 并确认 `class_name` 列已落地。
+- 全量端到端 49/49 通过；其中「审计日志隔离」探针：辅导员 zhangmiao 仅可见 28 条本管辖范围/本人日志，未发现公信2301 / 公信25 / 公信26 / 李明 等非管辖标识泄露。
+
+---
+
 ## 2026-10-12 修复：前端 `npm run dev` 启动报 `EACCES: permission denied 0.0.0.0:5173`
 
 ---

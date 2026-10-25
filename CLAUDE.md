@@ -8,7 +8,7 @@ SDU 综合测评成绩管理平台 prototype — 高校综合测评工作台（s
 
 ## Run / build
 
-一键启动（Windows）：双击 `start.bat` — 自动拉起 Docker Desktop（如未运行）→ 起 Postgres 并等健康检查 → 数据库表结构迁移（migrate 只建表，不改动业务数据）→ 开两个窗口分别运行后端 `:8090` 和前端 `:5173`。**纯启动工具，不含 seed**；演示数据只能手动 `go run ./cmd/seed` 恢复（destructive，会覆盖账号密码并恢复全部演示数据）。停止数据库用 `stop.bat`。逻辑在 `start.ps1` / `stop.ps1`（UTF-8 BOM + CRLF 编码，编辑时必须保持，否则中文乱码；`start.bat` / `stop.bat` 是纯 ASCII 启动器，不要往里写中文）。
+一键启动（Windows）：双击 `start.bat` — 自动拉起 Docker Desktop（如未运行）→ 起 Postgres 并等健康检查 → 数据库表结构迁移（migrate 只建表，不改动业务数据）→ 开两个窗口分别运行后端 `:9080` 和前端 `:5173`。**纯启动工具，不含 seed**；演示数据只能手动 `go run ./cmd/seed` 恢复（destructive，会覆盖账号密码并恢复全部演示数据）。停止数据库用 `stop.bat`。逻辑在 `start.ps1` / `stop.ps1`（UTF-8 BOM + CRLF 编码，编辑时必须保持，否则中文乱码；`start.bat` / `stop.bat` 是纯 ASCII 启动器，不要往里写中文）。
 
 手动启动：
 后端：
@@ -18,7 +18,7 @@ docker compose up -d postgres        # 起 Postgres
 cp .env.example .env                 # 首次需要复制
 go run ./cmd/migrate up              # 建表
 go run ./cmd/seedclasses             # 测试账号矩阵（幂等）；go run ./cmd/seed 为完整演示数据（覆盖密码）
-go run ./cmd/server                  # 监听 :8090（.env 的 SERVER_ADDR）
+go run ./cmd/server                  # 监听 :9080（.env 的 SERVER_ADDR）
 go build ./...                       # 编译检查
 go vet ./...
 go test ./...
@@ -29,7 +29,7 @@ go test ./...
 ```bash
 cd frontend
 npm install
-npm run dev    # 监听 :5173，/api 代理到 :8090
+npm run dev    # 监听 :5173，/api 代理到 :9080
 ```
 
 前端（生产）：执行 `npm run build`，Gin 会自动从 `frontend/dist` 提供静态文件并把非 `/api/*` 的路由 fallback 到 `index.html`。

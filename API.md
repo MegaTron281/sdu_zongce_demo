@@ -9,7 +9,7 @@ go run ./cmd/seedclasses   # 测试账号矩阵（幂等，不覆盖密码）
 go run ./cmd/server
 ```
 
-后端地址取自 `.env` 的 `SERVER_ADDR`（本机开发为 `http://localhost:8090`，未配置时默认 `:8080`）。
+后端地址取自 `.env` 的 `SERVER_ADDR`（本机开发为 `http://localhost:9080`，未配置时默认 `:8080`）。
 
 前端开发：
 
@@ -68,10 +68,10 @@ Vue 开发地址：`http://localhost:5173`，Vite 会把 `/api` 代理到 Gin �
 
 ```bash
 # 登录账号 A，拿到 token 后通过 Bearer 头调用（并行于账号 B 互不干扰）
-TOKEN_A=$(curl -s -X POST http://localhost:8090/api/auth/login \
+TOKEN_A=$(curl -s -X POST http://localhost:9080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"role":"student","account":"202300271018","password":"123456"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
-curl -s http://localhost:8090/api/auth/me -H "Authorization: Bearer $TOKEN_A"
+curl -s http://localhost:9080/api/auth/me -H "Authorization: Bearer $TOKEN_A"
 ```
 
 活动截止时间（`deadline`）仅表示活动本身的举办/报名截止，**不限制综测加分申报**——学生随时可对已上架活动提交综测申报，受控的只有汇总期锁（`summaryPhase`）。
@@ -79,7 +79,7 @@ curl -s http://localhost:8090/api/auth/me -H "Authorization: Bearer $TOKEN_A"
 ## 登录示例
 
 ```bash
-curl -c /tmp/sdu-cookie.txt -X POST http://localhost:8090/api/auth/login \
+curl -c /tmp/sdu-cookie.txt -X POST http://localhost:9080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"role":"student","account":"202300271018","password":"123456"}'
 ```
@@ -89,7 +89,7 @@ curl -c /tmp/sdu-cookie.txt -X POST http://localhost:8090/api/auth/login \
 ## 提交申请示例
 
 ```bash
-curl -X POST http://localhost:8090/api/applications \
+curl -X POST http://localhost:9080/api/applications \
   -b /tmp/sdu-cookie.txt \
   -H 'Content-Type: application/json' \
   -d '{
@@ -110,7 +110,7 @@ curl -X POST http://localhost:8090/api/applications \
 ## 审核示例
 
 ```bash
-curl -X POST http://localhost:8090/api/applications/s2/review-pass \
+curl -X POST http://localhost:9080/api/applications/s2/review-pass \
   -b /tmp/sdu-cookie.txt \
   -H 'Content-Type: application/json' \
   -d '{"reason":"材料齐全"}'

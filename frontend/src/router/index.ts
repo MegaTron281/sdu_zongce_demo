@@ -67,9 +67,19 @@ export const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
-  if (to.name === "login") return true;
   const user = await auth.ensureMe();
-  if (!user) return { name: "login" };
+  if (!user) {
+    // 未登录：仅允许访问登录页，其余一律引导至登录页
+    if (to.name !== "login") return { name: "login" };
+    return true;
+  }
+  // 已登录
+  if (to.name === "login") {
+    // 已登录访问登录页默认跳转到角色首页，避免困惑；
+    // 如需切换账号（例如并行多账号），访问 /login?force=1 强制显示登录框。
+    if (to.query.force === "1") return true;
+    return { name: rolePages[user.role][0].name };
+  }
   const roles = to.meta.roles as string[] | undefined;
   if (roles && !roles.includes(user.role)) {
     return { name: rolePages[user.role][0].name };

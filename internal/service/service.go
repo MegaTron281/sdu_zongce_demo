@@ -68,6 +68,7 @@ func (s *Service) AddLog(tx *gorm.DB, actor domain.User, action, target, note st
 		Action:    action,
 		Target:    target,
 		Note:      strings.TrimSpace(note),
+		ClassName: actor.ClassName,
 		CreatedAt: s.now(),
 	}).Error
 }

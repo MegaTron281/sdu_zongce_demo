@@ -37,7 +37,7 @@ Write-Host "[3/3] 数据库表结构检查（不改动任何业务数据）..." 
 cmd /c "go run ./cmd/migrate up"
 if ($LASTEXITCODE -ne 0) { Abort "数据库迁移失败。" }
 
-Write-Host "启动后端（:8090）与前端（:5173）..." -ForegroundColor Cyan
+Write-Host "启动后端（:9080）与前端（:5173）..." -ForegroundColor Cyan
 if (-not (Test-Path "$root\frontend\node_modules")) {
     Start-Process cmd -ArgumentList "/k", "title sdu-frontend && npm install && npm run dev" -WorkingDirectory "$root\frontend" | Out-Null
 } else {
@@ -49,7 +49,7 @@ Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  启动完成！（本脚本不修改任何业务数据）" -ForegroundColor Green
 Write-Host "  前端： http://localhost:5173"
-Write-Host "  后端： http://localhost:8090"
+Write-Host "  后端： http://localhost:9080"
 Write-Host "  停止服务： 关闭 sdu-backend / sdu-frontend 两个窗口，再运行 stop.bat"
 Write-Host "========================================" -ForegroundColor Green
 Start-Sleep -Seconds 5

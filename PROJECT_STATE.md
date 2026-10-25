@@ -51,9 +51,9 @@
 
 ### 本机环境快照
 
-- Go 1.26.2、Node v24.15.0、Docker 29.4.2；`.env`（gitignore）已存在：`DATABASE_URL=postgres://sdu:sdu123@localhost:5432/sdu_assessment?sslmode=disable`、`SERVER_ADDR=:8090`（本机 8080 被系统服务占用）。
+- Go 1.26.2、Node v24.15.0、Docker 29.4.2；`.env`（gitignore）已存在：`DATABASE_URL=postgres://sdu:sdu123@localhost:5432/sdu_assessment?sslmode=disable`、`SERVER_ADDR=:9080`（本机 8080 被系统服务占用）。
 - **gcc 已装**：TDM-GCC 10.3.0 @ `D:\TDM-GCC-64\bin`，已加用户 PATH；`go test ./...` 需用 gcc（sqlite in-memory）。Go 检测不到 C 编译器时会自动 `CGO_ENABLED=0` 导致 sqlite 测试报 stub 错误——测试前设 `$env:CGO_ENABLED="1"` + PATH。
-- Postgres 容器 `sdu-assessment-postgres` healthy；后端 :8090 / 前端 :5173。
+- Postgres 容器 `sdu-assessment-postgres` healthy；后端 :9080 / 前端 :5173。
 - Go module 名 `demo1`（go.mod）。
 
 ### 启动步骤
@@ -92,7 +92,7 @@ start.bat   # 一键；或 docker compose up -d postgres && go run ./cmd/migrate
 - `.ps1` 必须 UTF-8 BOM + CRLF；`.bat` 纯 ASCII（不要往 .bat 写中文）；**PowerShell 工具命令里不要传中文**（会变 `??` 写进 DB）。
 - seed（`cmd/seed`）destructive：覆盖密码；测试账号一律用 `cmd/seedclasses`。
 - 分页 `limit`/`offset` 默认 50 最大 200；材料上传 PDF/PNG/JPG ≤10MB。
-- 本机后端 `:8090`（`.env` + vite 代理），不要改回 8080。
+- 本机后端 `:9080`（`.env` + vite 代理），不要改回 8080。
 - Docker 部署：应用 `/app`、Alpine、`RUN_SEED=true` 仅首次、Postgres 走 `sdu-net`。
 - 文档随功能同步：`API.md`、`README.md`、`USER_GUIDE.md`、`CHANGELOG.md`、`FLOW.md`、`CLAUDE.md`/`AGENTS.md`。
 
@@ -111,7 +111,7 @@ start.bat   # 一键；或 docker compose up -d postgres && go run ./cmd/migrate
   - 重建命令：`go run ./cmd/seedclasses`（幂等，不覆盖密码，同时保障超管账号存在）
 - **历史 demo 账号**（仅 `go run ./cmd/seed` 后存在，destructive 慎跑）：student `20230001` 李明 / `20230002` 陈欣(reviewer) / `20230003` 王悦 / `20230004` 赵然；密码 `123456`。
 - **库内业务数据**：3 活动（山大杯篮球/足球/排球，已上架）；5 申请（金瑞开 公信23：`app-haAmo7j-dQ0v2SHa` 公示中 1.00、`app-vfXx0TkA52oa7NpC` 公示中 12345.00、`app-iIUrd62XpGO8Q3Lw` 已通过 2.00；吴桐 公信24、冯雪 公信25 各 1 待班委审核）。
-- **`.env`**：`DATABASE_URL=postgres://sdu:sdu123@localhost:5432/sdu_assessment?sslmode=disable`、`SESSION_SECRET=dev-session-secret`、`SERVER_ADDR=:8090`、`FRONTEND_ORIGIN=http://localhost:5173`、`UPLOAD_DIR=uploads/materials`。
+- **`.env`**：`DATABASE_URL=postgres://sdu:sdu123@localhost:5432/sdu_assessment?sslmode=disable`、`SESSION_SECRET=dev-session-secret`、`SERVER_ADDR=:9080`、`FRONTEND_ORIGIN=http://localhost:5173`、`UPLOAD_DIR=uploads/materials`。
 - **compose**：`postgres:16-alpine`，库 `sdu_assessment`，用户 `sdu`/`sdu123`，端口 5432，healthcheck `pg_isready`。
 - **业务常量**：公示 48h；手动结束公示最短 1h；申诉采纳重新公示 48h；密码 ≥6 位；CSV 导入默认密码 `123456`；学业分占 0.9、素质分占 0.1（`assessment = round1(academic*0.9 + quality*0.1)`）；只累加「已通过」。
 - **gcc**：TDM-GCC 10.3.0 @ `D:\TDM-GCC-64\bin`（用户 PATH）。

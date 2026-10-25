@@ -142,6 +142,7 @@ type AuditLog struct {
 	Action    string    `json:"action"`
 	Target    string    `json:"target"`
 	Note      string    `json:"note"`
+	ClassName string    `gorm:"index" json:"className"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

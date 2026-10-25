@@ -35,7 +35,7 @@ func NewRouter(cfg config.Config, svc *service.Service) *gin.Engine {
 	auth.GET("/meta", server.meta)
 	auth.PATCH("/meta", server.requireRole("admin"), server.patchMeta)
 	auth.GET("/activities", server.listActivities)
-	auth.POST("/activities", server.createActivity)
+	auth.POST("/activities", server.requireRole("admin"), server.createActivity)
 	auth.GET("/activities/:id", server.getActivity)
 	auth.PATCH("/activities/:id", server.requireRole("admin"), server.patchActivity)
 	auth.GET("/applications", server.listApplications)

@@ -72,7 +72,8 @@ func (s *Service) ListActivities(keyword, category, level string) ([]domain.Acti
 }
 
 func (s *Service) CreateActivity(user domain.User, activity domain.Activity) (domain.ActivityWithCount, error) {
-	if user.Role != domain.RoleStudent && user.Role != domain.RoleAdmin {
+	// 活动名录为全校共享、由辅导员/系统管理员统一维护；与 PATCH 一致，仅 admin 可创建。
+	if user.Role != domain.RoleAdmin {
 		return domain.ActivityWithCount{}, ErrForbidden
 	}
 	name := strings.TrimSpace(activity.Name)
@@ -102,13 +103,7 @@ func (s *Service) CreateActivity(user domain.User, activity domain.Activity) (do
 		if err := tx.Create(&activity).Error; err != nil {
 			return err
 		}
-		action := "申请补录活动"
-		note := "进入待审核上架"
-		if user.Role == domain.RoleAdmin {
-			action = "创建活动名录"
-			note = "管理员创建"
-		}
-		return s.AddLog(tx, user, action, activity.Name, note)
+		return s.AddLog(tx, user, "创建活动名录", activity.Name, "管理员创建")
 	})
 	if err != nil {
 		return domain.ActivityWithCount{}, err
@@ -172,7 +167,17 @@ func (s *Service) Logs(user domain.User) ([]domain.AuditLog, error) {
 	if user.Role != domain.RoleAdmin {
 		return nil, ErrForbidden
 	}
+	query := s.db.Order("created_at ASC")
+	if !IsSuperAdmin(user) {
+		// 辅导员 仅看管辖班级内的日志（含本班成员与本人操作）；未配置管辖班级则仅看本人操作，
+		// 避免跨班读取其他班级的审计信息（fail-closed）。
+		if len(user.ManagedClasses) > 0 {
+			query = query.Where("class_name IN ? OR actor = ?", user.ManagedClasses, user.DisplayName)
+		} else {
+			query = query.Where("actor = ?", user.DisplayName)
+		}
+	}
 	var logs []domain.AuditLog
-	err := s.db.Order("created_at ASC").Find(&logs).Error
+	err := query.Find(&logs).Error
 	return logs, err
 }

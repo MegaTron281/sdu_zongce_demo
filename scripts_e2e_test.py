@@ -7,7 +7,7 @@ import sys
 import urllib.request
 import urllib.error
 
-BASE = "http://localhost:8090/api"
+BASE = "http://localhost:9080/api"
 
 # 1x1 透明 PNG（用于材料上传测试）
 PNG_B64 = bytes.fromhex(
