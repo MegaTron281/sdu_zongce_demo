@@ -75,10 +75,8 @@ router.beforeEach(async (to) => {
   }
   // 已登录
   if (to.name === "login") {
-    // 已登录访问登录页默认跳转到角色首页，避免困惑；
-    // 如需切换账号（例如并行多账号），访问 /login?force=1 强制显示登录框。
-    if (to.query.force === "1") return true;
-    return { name: rolePages[user.role][0].name };
+    // 登录页始终展示登录表单，便于在已登录状态下直接切换账号
+    return true;
   }
   const roles = to.meta.roles as string[] | undefined;
   if (roles && !roles.includes(user.role)) {
